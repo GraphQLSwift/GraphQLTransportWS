@@ -52,7 +52,7 @@ class GraphqlTransportWsTests: XCTestCase {
         let completeExpectation = XCTestExpectation()
         
         let client = Client(messenger: clientMessenger)
-        client.onMessage { message in
+        client.onMessage { message, _ in
             messages.append(message)
             completeExpectation.fulfill()
         }
@@ -78,8 +78,7 @@ class GraphqlTransportWsTests: XCTestCase {
         let completeExpectation = XCTestExpectation()
         
         let client = Client(messenger: clientMessenger)
-        client.onConnectionAck { [weak client] _ in
-            guard let client = client else { return }
+        client.onConnectionAck { _, client in
             client.sendStart(
                 payload: GraphQLRequest(
                     query: """
@@ -91,13 +90,13 @@ class GraphqlTransportWsTests: XCTestCase {
                 id: id
             )
         }
-        client.onError { _ in
+        client.onError { _, _ in
             completeExpectation.fulfill()
         }
-        client.onComplete { _ in
+        client.onComplete { _, _ in
             completeExpectation.fulfill()
         }
-        client.onMessage { message in
+        client.onMessage { message, _ in
             messages.append(message)
         }
         
@@ -126,8 +125,7 @@ class GraphqlTransportWsTests: XCTestCase {
         let dataIndexMax = 3
         
         let client = Client(messenger: clientMessenger)
-        client.onConnectionAck { [weak client] _ in
-            guard let client = client else { return }
+        client.onConnectionAck { _, client in
             client.sendStart(
                 payload: GraphQLRequest(
                     query: """
@@ -144,7 +142,7 @@ class GraphqlTransportWsTests: XCTestCase {
             
             pubsub.onNext("hello \(dataIndex)")
         }
-        client.onNext { _ in
+        client.onNext { _, _ in
             dataIndex = dataIndex + 1
             if dataIndex <= dataIndexMax {
                 pubsub.onNext("hello \(dataIndex)")
@@ -152,13 +150,13 @@ class GraphqlTransportWsTests: XCTestCase {
                 pubsub.onCompleted()
             }
         }
-        client.onError { _ in
+        client.onError { _, _ in
             completeExpectation.fulfill()
         }
-        client.onComplete { _ in
+        client.onComplete { _, _ in
             completeExpectation.fulfill()
         }
-        client.onMessage { message in
+        client.onMessage { message, _ in
             messages.append(message)
         }
         

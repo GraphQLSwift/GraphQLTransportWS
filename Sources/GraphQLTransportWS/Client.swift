@@ -8,11 +8,11 @@ import GraphQL
 class Client {
     let messenger: Messenger
     
-    var onMessage: (String) -> Void = { _ in }
-    var onConnectionAck: (ConnectionAckResponse) -> Void = { _ in }
-    var onNext: (NextResponse) -> Void = { _ in }
-    var onError: (ErrorResponse) -> Void = { _ in }
-    var onComplete: (CompleteResponse) -> Void = { _ in }
+    var onConnectionAck: (ConnectionAckResponse, Client) -> Void = { _, _ in }
+    var onNext: (NextResponse, Client) -> Void = { _, _ in }
+    var onError: (ErrorResponse, Client) -> Void = { _, _ in }
+    var onComplete: (CompleteResponse, Client) -> Void = { _, _ in }
+    var onMessage: (String, Client) -> Void = { _, _ in }
     
     let encoder = GraphQLJSONEncoder()
     let decoder = JSONDecoder()
@@ -20,7 +20,7 @@ class Client {
     /// Create a new client.
     ///
     /// - Parameters:
-    ///   - messenger: The messenger to bind the client to. 
+    ///   - messenger: The messenger to bind the client to.
     init(
         messenger: Messenger
     ) {
@@ -28,7 +28,7 @@ class Client {
         self.messenger.onRecieve { [weak self] message in
             guard let self = self else { return }
             
-            self.onMessage(message)
+            self.onMessage(message, self)
             
             // Detect and ignore error responses.
             if message.starts(with: "44") {
@@ -59,28 +59,28 @@ class Client {
                         messenger.error(error.message, code: error.code)
                         return
                     }
-                    self.onConnectionAck(connectionAckResponse)
+                    self.onConnectionAck(connectionAckResponse, self)
                 case .next:
                     guard let nextResponse = try? self.decoder.decode(NextResponse.self, from: json) else {
                         let error = GraphqlTransportWsError.invalidResponseFormat(messageType: .next)
                         messenger.error(error.message, code: error.code)
                         return
                     }
-                    self.onNext(nextResponse)
+                    self.onNext(nextResponse, self)
                 case .error:
                     guard let errorResponse = try? self.decoder.decode(ErrorResponse.self, from: json) else {
                         let error = GraphqlTransportWsError.invalidResponseFormat(messageType: .error)
                         messenger.error(error.message, code: error.code)
                         return
                     }
-                    self.onError(errorResponse)
+                    self.onError(errorResponse, self)
                 case .complete:
                     guard let completeResponse = try? self.decoder.decode(CompleteResponse.self, from: json) else {
                         let error = GraphqlTransportWsError.invalidResponseFormat(messageType: .complete)
                         messenger.error(error.message, code: error.code)
                         return
                     }
-                    self.onComplete(completeResponse)
+                    self.onComplete(completeResponse, self)
                 case .unknown:
                     let error = GraphqlTransportWsError.invalidType()
                     messenger.error(error.message, code: error.code)
@@ -90,31 +90,31 @@ class Client {
     
     /// Define the callback run on receipt of a `connection_ack` message
     /// - Parameter callback: The callback to assign
-    func onConnectionAck(_ callback: @escaping (ConnectionAckResponse) -> Void) {
+    func onConnectionAck(_ callback: @escaping (ConnectionAckResponse, Client) -> Void) {
         self.onConnectionAck = callback
     }
     
     /// Define the callback run on receipt of a `next` message
     /// - Parameter callback: The callback to assign
-    func onNext(_ callback: @escaping (NextResponse) -> Void) {
+    func onNext(_ callback: @escaping (NextResponse, Client) -> Void) {
         self.onNext = callback
     }
     
     /// Define the callback run on receipt of an `error` message
     /// - Parameter callback: The callback to assign
-    func onError(_ callback: @escaping (ErrorResponse) -> Void) {
+    func onError(_ callback: @escaping (ErrorResponse, Client) -> Void) {
         self.onError = callback
     }
     
     /// Define the callback run on receipt of a `complete` message
     /// - Parameter callback: The callback to assign
-    func onComplete(_ callback: @escaping (CompleteResponse) -> Void) {
+    func onComplete(_ callback: @escaping (CompleteResponse, Client) -> Void) {
         self.onComplete = callback
     }
     
     /// Define the callback run on receipt of any message
     /// - Parameter callback: The callback to assign
-    func onMessage(_ callback: @escaping (String) -> Void) {
+    func onMessage(_ callback: @escaping (String, Client) -> Void) {
         self.onMessage = callback
     }
     
