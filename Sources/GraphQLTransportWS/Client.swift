@@ -3,9 +3,8 @@
 import Foundation
 import GraphQL
 
-/// Adds client-side [graphql-transport-ws protocol](https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md)
-/// support, namely parsing and adding callbacks for each type of server respose.
-class Client {
+/// Client is an open-ended implementation of the client side of the protocol. It parses and adds callbacks for each type of server respose.
+public class Client {
     let messenger: Messenger
     
     var onConnectionAck: (ConnectionAckResponse, Client) -> Void = { _, _ in }
@@ -21,7 +20,7 @@ class Client {
     ///
     /// - Parameters:
     ///   - messenger: The messenger to bind the client to.
-    init(
+    public init(
         messenger: Messenger
     ) {
         self.messenger = messenger
@@ -90,36 +89,36 @@ class Client {
     
     /// Define the callback run on receipt of a `connection_ack` message
     /// - Parameter callback: The callback to assign
-    func onConnectionAck(_ callback: @escaping (ConnectionAckResponse, Client) -> Void) {
+    public func onConnectionAck(_ callback: @escaping (ConnectionAckResponse, Client) -> Void) {
         self.onConnectionAck = callback
     }
     
     /// Define the callback run on receipt of a `next` message
     /// - Parameter callback: The callback to assign
-    func onNext(_ callback: @escaping (NextResponse, Client) -> Void) {
+    public func onNext(_ callback: @escaping (NextResponse, Client) -> Void) {
         self.onNext = callback
     }
     
     /// Define the callback run on receipt of an `error` message
     /// - Parameter callback: The callback to assign
-    func onError(_ callback: @escaping (ErrorResponse, Client) -> Void) {
+    public func onError(_ callback: @escaping (ErrorResponse, Client) -> Void) {
         self.onError = callback
     }
     
     /// Define the callback run on receipt of a `complete` message
     /// - Parameter callback: The callback to assign
-    func onComplete(_ callback: @escaping (CompleteResponse, Client) -> Void) {
+    public func onComplete(_ callback: @escaping (CompleteResponse, Client) -> Void) {
         self.onComplete = callback
     }
     
     /// Define the callback run on receipt of any message
     /// - Parameter callback: The callback to assign
-    func onMessage(_ callback: @escaping (String, Client) -> Void) {
+    public func onMessage(_ callback: @escaping (String, Client) -> Void) {
         self.onMessage = callback
     }
     
     /// Send a `connection_init` request through the messenger
-    func sendConnectionInit(payload: ConnectionInitAuth?) {
+    public func sendConnectionInit(payload: ConnectionInitAuth?) {
         messenger.send(
             ConnectionInitRequest(
                 payload: payload
@@ -128,7 +127,7 @@ class Client {
     }
     
     /// Send a `subscribe` request through the messenger
-    func sendStart(payload: GraphQLRequest, id: String) {
+    public func sendStart(payload: GraphQLRequest, id: String) {
         messenger.send(
             SubscribeRequest(
                 payload: payload,
@@ -138,7 +137,7 @@ class Client {
     }
     
     /// Send a `complete` request through the messenger
-    func sendStop(id: String) {
+    public func sendStop(id: String) {
         messenger.send(
             CompleteRequest(
                 id: id

@@ -3,17 +3,15 @@
 import Foundation
 import GraphQL
 
-/// Reference for graphql-transport-ws protocol: https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md
-
 /// A general response. This object's type is used to triage to other, more specific response objects.
 struct Response: Equatable, JsonEncodable {
     let type: ResponseMessageType
 }
 
 /// A websocket `connection_ack` response from the server to the client
-struct ConnectionAckResponse: Equatable, JsonEncodable {
+public struct ConnectionAckResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
-    let payload: [String: Map]?
+    public let payload: [String: Map]?
     
     init(_ payload: [String: Map]? = nil) {
         self.type = .connectionAck
@@ -22,10 +20,10 @@ struct ConnectionAckResponse: Equatable, JsonEncodable {
 }
 
 /// A websocket `next` response from the server to the client
-struct NextResponse: Equatable, JsonEncodable {
+public struct NextResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
-    let payload: GraphQLResult?
-    let id: String
+    public let payload: GraphQLResult?
+    public let id: String
     
     init(_ payload: GraphQLResult? = nil, id: String) {
         self.type = .next
@@ -35,9 +33,9 @@ struct NextResponse: Equatable, JsonEncodable {
 }
 
 /// A websocket `complete` response from the server to the client
-struct CompleteResponse: Equatable, JsonEncodable {
+public struct CompleteResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
-    let id: String
+    public let id: String
     
     init(_: GraphQLResult? = nil, id: String) {
         self.type = .complete
@@ -46,10 +44,10 @@ struct CompleteResponse: Equatable, JsonEncodable {
 }
 
 /// A websocket `error` response from the server to the client
-struct ErrorResponse: Equatable, JsonEncodable {
+public struct ErrorResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
-    let payload: [GraphQLError]
-    let id: String
+    public let payload: [GraphQLError]
+    public let id: String
     
     init(_ errors: [Error], id: String) {
         let graphQLErrors = errors.map { error -> GraphQLError in

@@ -3,7 +3,7 @@
 import Foundation
 import GraphQL
 
-/// Indicates an object that can be converted into JSON for websocket messaging
+/// Indicates an object that can be converted into JSON for messaging
 protocol JsonEncodable: Codable {}
 
 extension JsonEncodable {

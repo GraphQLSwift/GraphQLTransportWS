@@ -3,8 +3,6 @@
 import Foundation
 import GraphQL
 
-/// Reference for graphql-transport-ws protocol: https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md
-///
 /// We also require that an 'authToken' field is provided in the 'payload' during the connection
 /// init message. For example:
 /// ```
@@ -17,19 +15,20 @@ import GraphQL
 /// ```
 
 /// A general request. This object's type is used to triage to other, more specific request objects.
-struct Request: Equatable, JsonEncodable {
+public struct Request: Equatable, JsonEncodable {
     let type: RequestMessageType
 }
 
 /// A websocket `connection_init` request from the client to the server
-struct ConnectionInitRequest: Equatable, JsonEncodable {
+public struct ConnectionInitRequest: Equatable, JsonEncodable {
     var type = RequestMessageType.connectionInit
-    let payload: ConnectionInitAuth?
+    public let payload: ConnectionInitAuth?
 }
 
+// TODO: Make this structure user-defined
 /// Authorization format for a websocket `connection_init` request from the client to the server
-struct ConnectionInitAuth: Equatable, JsonEncodable {
-    let authToken: String
+public struct ConnectionInitAuth: Equatable, JsonEncodable {
+    public let authToken: String
 }
 
 /// A websocket `subscribe` request from the client to the server
