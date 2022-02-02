@@ -7,8 +7,10 @@ import NIO
 import RxSwift
 
 /// Adds server-side [graphql-transport-ws protocol](https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md)
-/// support, namely parsing and adding callbacks for each type of client request.
+/// support. This handles the majority of query processing according to the procol definition, allowing a few callbacks for customization.
 class Server {
+    let messenger: Messenger
+    
     let auth: (ConnectionInitRequest) throws -> Void
     let onExecute: (GraphQLRequest) -> EventLoopFuture<GraphQLResult>
     let onSubscribe: (GraphQLRequest) -> EventLoopFuture<SubscriptionResult>
@@ -21,24 +23,33 @@ class Server {
     let encoder = GraphQLJSONEncoder()
     let decoder = JSONDecoder()
     
+    /// Create a new server
+    ///
+    /// - Parameters:
+    ///   - messenger: The messenger to bind the server to.
+    ///   - auth: Callback run during `connection_init` resolution that allows authorization using the `payload`. Throw to indicate that authorization has failed.
+    ///   - onExecute: Callback run during `subscribe` resolution for non-streaming queries. Typically this is `API.execute`.
+    ///   - onSubscribe: Callback run during `subscribe` resolution for streaming queries. Typically this is `API.subscribe`.
+    ///   - onExit: Callback run when the communication is shut down, either by the client or server
+    ///   - onMessage: callback run on receipt of any message
     init(
+        messenger: Messenger,
         auth: @escaping (ConnectionInitRequest) throws -> Void,
         onExecute: @escaping (GraphQLRequest) -> EventLoopFuture<GraphQLResult>,
         onSubscribe: @escaping (GraphQLRequest) -> EventLoopFuture<SubscriptionResult>,
         onExit: @escaping () -> Void,
         onMessage: @escaping (String) -> Void = { _ in () }
     ) {
+        self.messenger = messenger
         self.auth = auth
         self.onExecute = onExecute
         self.onSubscribe = onSubscribe
         self.onExit = onExit
         self.onMessage = onMessage
-    }
-    
-    /// Attaches the responder to the provided Messenger in order to recieve and transmit messages
-    /// - Parameter messenger: The Messenger to use for communication
-    func attach(to messenger: Messenger) {
-        messenger.onRecieve { message in
+        
+        self.messenger.onRecieve { [weak self] message in
+            guard let self = self else { return }
+            
             self.onMessage(message)
             
             // Detect and ignore error responses.
@@ -93,9 +104,9 @@ class Server {
         
         // Clean up any uncompleted subscriptions
         // TODO: Re-enable this
-//        messenger.onClose {
-//            _ = self.context?.cleanupSubscription()
-//        }
+        //        messenger.onClose {
+        //            _ = self.context?.cleanupSubscription()
+        //        }
     }
     
     private func onConnectionInit(_ connectionInitRequest: ConnectionInitRequest, _ messenger: Messenger) {
