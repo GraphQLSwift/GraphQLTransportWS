@@ -95,12 +95,6 @@ public class Server {
                     messenger.error(error.message, code: error.code)
             }
         }
-        
-        // Clean up any uncompleted subscriptions
-        // TODO: Re-enable this
-        //        messenger.onClose {
-        //            _ = self.context?.cleanupSubscription()
-        //        }
     }
     
     /// Define the callback run during `connection_init` resolution that allows authorization using the `payload`.
@@ -137,9 +131,7 @@ public class Server {
             return
         }
         initialized = true
-        messenger.send(
-            ConnectionAckResponse().toJSON(encoder)
-        )
+        self.sendConnectionAck()
     }
     
     private func onSubscribe(_ subscribeRequest: SubscribeRequest, _ messenger: Messenger) {
@@ -157,7 +149,7 @@ public class Server {
             isStreaming = try graphQLRequest.isSubscription()
         }
         catch {
-            messenger.send(ErrorResponse(error, id: id).toJSON(self.encoder))
+            self.sendError(error, id: id)
             return
         }
         
@@ -176,22 +168,22 @@ public class Server {
                 
                 observable.subscribe(
                     onNext: { [weak self] resultFuture in
-                        guard let self = self, let messenger = self.messenger else { return }
+                        guard let self = self else { return }
                         resultFuture.whenSuccess { result in
-                            messenger.send(NextResponse(result, id: id).toJSON(self.encoder))
+                            self.sendNext(result, id: id)
                         }
                         resultFuture.whenFailure { error in
-                            messenger.send(ErrorResponse(error, id: id).toJSON(self.encoder))
+                            self.sendError(error, id: id)
                         }
                     },
                     onError: { [weak self] error in
-                        guard let self = self, let messenger = self.messenger else { return }
-                        messenger.send(ErrorResponse(error, id: id).toJSON(self.encoder))
+                        guard let self = self else { return }
+                        self.sendError(error, id: id)
                     },
                     onCompleted: { [weak self] in
-                        guard let self = self, let messenger = self.messenger else { return }
-                        messenger.send(CompleteResponse(id: id).toJSON(self.encoder))
-                        _ = messenger.close()
+                        guard let self = self else { return }
+                        self.sendComplete(id: id)
+                        self.messenger?.close()
                     }
                 ).disposed(by: self.disposeBag)
             }
@@ -203,12 +195,14 @@ public class Server {
         else {
             let executeFuture = onExecute(graphQLRequest)
             executeFuture.whenSuccess { result in
-                messenger.send(NextResponse(result, id: id).toJSON(self.encoder))
-                messenger.send(CompleteResponse(id: id).toJSON(self.encoder))
+                self.sendNext(result, id: id)
+                self.sendComplete(id: id)
+                self.messenger?.close()
             }
             executeFuture.whenFailure { error in
-                messenger.send(ErrorResponse(error, id: id).toJSON(self.encoder))
-                messenger.send(CompleteResponse(id: id).toJSON(self.encoder))
+                self.sendError(error, id: id)
+                self.sendComplete(id: id)
+                self.messenger?.close()
             }
         }
     }
@@ -220,5 +214,55 @@ public class Server {
             return
         }
         onExit()
+    }
+    
+    /// Send a `connection_ack` response through the messenger
+    private func sendConnectionAck(_ payload: [String: Map]? = nil) {
+        guard let messenger = messenger else { return }
+        messenger.send(
+            ConnectionAckResponse(payload).toJSON(encoder)
+        )
+    }
+    
+    /// Send a `next` response through the messenger
+    private func sendNext(_ payload: GraphQLResult? = nil, id: String) {
+        guard let messenger = messenger else { return }
+        messenger.send(
+            NextResponse(
+                payload,
+                id: id
+            ).toJSON(encoder)
+        )
+    }
+    
+    /// Send a `complete` response through the messenger
+    private func sendComplete(id: String) {
+        guard let messenger = messenger else { return }
+        messenger.send(
+            CompleteResponse(
+                id: id
+            ).toJSON(encoder)
+        )
+    }
+    
+    /// Send an `error` response through the messenger
+    private func sendError(_ errors: [Error], id: String) {
+        guard let messenger = messenger else { return }
+        messenger.send(
+            ErrorResponse(
+                errors,
+                id: id
+            ).toJSON(encoder)
+        )
+    }
+    
+    /// Send an `error` response through the messenger
+    private func sendError(_ error: Error, id: String) {
+        self.sendError([error], id: id)
+    }
+    
+    /// Send an `error` response through the messenger
+    private func sendError(_ errorMessage: String, id: String) {
+        self.sendError(GraphQLError(message: errorMessage), id: id)
     }
 }
