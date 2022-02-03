@@ -8,7 +8,7 @@ import XCTest
 
 @testable import GraphQLTransportWS
 
-class GraphqlTransportWsTests: XCTestCase {
+class GraphqlTransportWSTests: XCTestCase {
     var clientMessenger: TestMessenger!
     var serverMessenger: TestMessenger!
     var server: Server!
@@ -68,7 +68,7 @@ class GraphqlTransportWsTests: XCTestCase {
         wait(for: [completeExpectation], timeout: 2)
         XCTAssertEqual(
             messages,
-            ["4407: Connection not initialized"]
+            ["\(ErrorCode.notInitialized): Connection not initialized"]
         )
     }
     
@@ -96,7 +96,7 @@ class GraphqlTransportWsTests: XCTestCase {
         wait(for: [completeExpectation], timeout: 2)
         XCTAssertEqual(
             messages,
-            ["4401: Unauthorized"]
+            ["\(ErrorCode.unauthorized): Unauthorized"]
         )
     }
     

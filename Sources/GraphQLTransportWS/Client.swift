@@ -26,8 +26,6 @@ public class Client {
     ) {
         self.messenger = messenger
         messenger.onRecieve { message in
-            guard let messenger = self.messenger else { return }
-            
             self.onMessage(message, self)
             
             // Detect and ignore error responses.
@@ -37,8 +35,7 @@ public class Client {
             }
             
             guard let json = message.data(using: .utf8) else {
-                let error = GraphqlTransportWsError.invalidEncoding()
-                messenger.error(error.message, code: error.code)
+                self.error(.invalidEncoding())
                 return
             }
             
@@ -47,43 +44,37 @@ public class Client {
                 response = try self.decoder.decode(Response.self, from: json)
             }
             catch {
-                let error = GraphqlTransportWsError.noType()
-                messenger.error(error.message, code: error.code)
+                self.error(.noType())
                 return
             }
             
             switch response.type {
                 case .connectionAck:
                     guard let connectionAckResponse = try? self.decoder.decode(ConnectionAckResponse.self, from: json) else {
-                        let error = GraphqlTransportWsError.invalidResponseFormat(messageType: .connectionAck)
-                        messenger.error(error.message, code: error.code)
+                        self.error(.invalidResponseFormat(messageType: .connectionAck))
                         return
                     }
                     self.onConnectionAck(connectionAckResponse, self)
                 case .next:
                     guard let nextResponse = try? self.decoder.decode(NextResponse.self, from: json) else {
-                        let error = GraphqlTransportWsError.invalidResponseFormat(messageType: .next)
-                        messenger.error(error.message, code: error.code)
+                        self.error(.invalidResponseFormat(messageType: .next))
                         return
                     }
                     self.onNext(nextResponse, self)
                 case .error:
                     guard let errorResponse = try? self.decoder.decode(ErrorResponse.self, from: json) else {
-                        let error = GraphqlTransportWsError.invalidResponseFormat(messageType: .error)
-                        messenger.error(error.message, code: error.code)
+                        self.error(.invalidResponseFormat(messageType: .error))
                         return
                     }
                     self.onError(errorResponse, self)
                 case .complete:
                     guard let completeResponse = try? self.decoder.decode(CompleteResponse.self, from: json) else {
-                        let error = GraphqlTransportWsError.invalidResponseFormat(messageType: .complete)
-                        messenger.error(error.message, code: error.code)
+                        self.error(.invalidResponseFormat(messageType: .complete))
                         return
                     }
                     self.onComplete(completeResponse, self)
                 case .unknown:
-                    let error = GraphqlTransportWsError.invalidType()
-                    messenger.error(error.message, code: error.code)
+                    self.error(.invalidType())
             }
         }
     }
@@ -147,5 +138,11 @@ public class Client {
                 id: id
             ).toJSON(encoder)
         )
+    }
+    
+    /// Send an error through the messenger and close the connection
+    private func error(_ error: GraphQLTransportWSError) {
+        guard let messenger = messenger else { return }
+        messenger.error(error.message, code: error.code.rawValue)
     }
 }
