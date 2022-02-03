@@ -8,7 +8,8 @@ import RxSwift
 
 /// Server implements the server-side portion of the protocol, allowing a few callbacks for customization.
 public class Server {
-    let messenger: Messenger
+    // We keep this weak because we strongly inject this object into the messenger callback
+    weak var messenger: Messenger?
     
     let onExecute: (GraphQLRequest) -> EventLoopFuture<GraphQLResult>
     let onSubscribe: (GraphQLRequest) -> EventLoopFuture<SubscriptionResult>
@@ -40,8 +41,8 @@ public class Server {
         self.onExecute = onExecute
         self.onSubscribe = onSubscribe
         
-        self.messenger.onRecieve { [weak self] message in
-            guard let self = self else { return }
+        messenger.onRecieve { message in
+            guard let messenger = self.messenger else { return }
             
             self.onMessage(message)
             
@@ -162,7 +163,8 @@ public class Server {
         
         if isStreaming {
             let subscribeFuture = onSubscribe(graphQLRequest)
-            subscribeFuture.whenSuccess { result in
+            subscribeFuture.whenSuccess { [weak self] result in
+                guard let self = self, let messenger = self.messenger else { return }
                 guard let streamOpt = result.stream else {
                     // API issue - subscribe resolver isn't stream
                     let error = GraphqlTransportWsError.internalAPIStreamIssue()
@@ -174,7 +176,7 @@ public class Server {
                 
                 observable.subscribe(
                     onNext: { [weak self] resultFuture in
-                        guard let self = self else { return }
+                        guard let self = self, let messenger = self.messenger else { return }
                         resultFuture.whenSuccess { result in
                             messenger.send(NextResponse(result, id: id).toJSON(self.encoder))
                         }
@@ -183,11 +185,11 @@ public class Server {
                         }
                     },
                     onError: { [weak self] error in
-                        guard let self = self else { return }
+                        guard let self = self, let messenger = self.messenger else { return }
                         messenger.send(ErrorResponse(error, id: id).toJSON(self.encoder))
                     },
                     onCompleted: { [weak self] in
-                        guard let self = self else { return }
+                        guard let self = self, let messenger = self.messenger else { return }
                         messenger.send(CompleteResponse(id: id).toJSON(self.encoder))
                         _ = messenger.close()
                     }

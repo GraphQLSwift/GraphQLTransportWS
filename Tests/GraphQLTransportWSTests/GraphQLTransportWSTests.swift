@@ -10,11 +10,12 @@ import XCTest
 
 class GraphqlTransportWsTests: XCTestCase {
     var clientMessenger: TestMessenger!
+    var serverMessenger: TestMessenger!
     var server: Server!
     
     override func setUp() {
         clientMessenger = TestMessenger()
-        let serverMessenger = TestMessenger()
+        serverMessenger = TestMessenger()
         
         clientMessenger.other = serverMessenger
         serverMessenger.other = clientMessenger

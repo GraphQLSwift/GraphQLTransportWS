@@ -5,7 +5,8 @@ import GraphQL
 
 /// Client is an open-ended implementation of the client side of the protocol. It parses and adds callbacks for each type of server respose.
 public class Client {
-    let messenger: Messenger
+    // We keep this weak because we strongly inject this object into the messenger callback
+    weak var messenger: Messenger?
     
     var onConnectionAck: (ConnectionAckResponse, Client) -> Void = { _, _ in }
     var onNext: (NextResponse, Client) -> Void = { _, _ in }
@@ -24,8 +25,8 @@ public class Client {
         messenger: Messenger
     ) {
         self.messenger = messenger
-        self.messenger.onRecieve { [weak self] message in
-            guard let self = self else { return }
+        messenger.onRecieve { message in
+            guard let messenger = self.messenger else { return }
             
             self.onMessage(message, self)
             
@@ -119,6 +120,7 @@ public class Client {
     
     /// Send a `connection_init` request through the messenger
     public func sendConnectionInit(payload: ConnectionInitAuth?) {
+        guard let messenger = messenger else { return }
         messenger.send(
             ConnectionInitRequest(
                 payload: payload
@@ -128,6 +130,7 @@ public class Client {
     
     /// Send a `subscribe` request through the messenger
     public func sendStart(payload: GraphQLRequest, id: String) {
+        guard let messenger = messenger else { return }
         messenger.send(
             SubscribeRequest(
                 payload: payload,
@@ -138,6 +141,7 @@ public class Client {
     
     /// Send a `complete` request through the messenger
     public func sendStop(id: String) {
+        guard let messenger = messenger else { return }
         messenger.send(
             CompleteRequest(
                 id: id
