@@ -3,7 +3,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "GraphQLWS",
+    name: "GraphQLTransportWS",
     products: [
         .library(
             name: "GraphQLTransportWS",
