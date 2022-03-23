@@ -194,11 +194,12 @@ public class Server {
         }
     }
     
-    private func onComplete(_: CompleteRequest) {
+    private func onComplete(_ completeRequest: CompleteRequest) {
         guard initialized else {
             self.error(.notInitialized())
             return
         }
+        self.sendComplete(id: completeRequest.id)
         onExit()
     }
     
