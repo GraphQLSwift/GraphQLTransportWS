@@ -30,8 +30,6 @@ public class Server {
     ///   - messenger: The messenger to bind the server to.
     ///   - onExecute: Callback run during `subscribe` resolution for non-streaming queries. Typically this is `API.execute`.
     ///   - onSubscribe: Callback run during `subscribe` resolution for streaming queries. Typically this is `API.subscribe`.
-    ///   - onExit: Callback run when the communication is shut down, either by the client or server
-    ///   - onMessage: callback run on receipt of any message
     public init(
         messenger: Messenger,
         onExecute: @escaping (GraphQLRequest) -> EventLoopFuture<GraphQLResult>,
@@ -148,7 +146,7 @@ public class Server {
                 guard let self = self else { return }
                 guard let streamOpt = result.stream else {
                     // API issue - subscribe resolver isn't stream
-                    self.error(.internalAPIStreamIssue(errors: result.errors))
+                    self.sendError(result.errors, id: id)
                     return
                 }
                 let stream = streamOpt as! ObservableSubscriptionEventStream
@@ -171,12 +169,11 @@ public class Server {
                     onCompleted: { [weak self] in
                         guard let self = self else { return }
                         self.sendComplete(id: id)
-                        self.messenger?.close()
                     }
                 ).disposed(by: self.disposeBag)
             }
             subscribeFuture.whenFailure { error in
-                self.error(.graphQLError(error))
+                self.sendError(error, id: id)
             }
         }
         else {
@@ -199,7 +196,6 @@ public class Server {
             self.error(.notInitialized())
             return
         }
-        onExit()
     }
     
     /// Send a `connection_ack` response through the messenger
