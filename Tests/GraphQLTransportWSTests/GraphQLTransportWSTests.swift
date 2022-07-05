@@ -14,9 +14,9 @@ class GraphqlTransportWSTests: XCTestCase {
     var server: Server<TokenInitPayload>!
     
     override func setUp() {
+        // Point the client and server at each other
         clientMessenger = TestMessenger()
         serverMessenger = TestMessenger()
-        
         clientMessenger.other = serverMessenger
         serverMessenger.other = clientMessenger
         
