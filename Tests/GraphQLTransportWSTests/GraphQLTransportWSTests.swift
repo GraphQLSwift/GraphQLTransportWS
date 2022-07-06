@@ -11,12 +11,12 @@ import XCTest
 class GraphqlTransportWSTests: XCTestCase {
     var clientMessenger: TestMessenger!
     var serverMessenger: TestMessenger!
-    var server: Server!
+    var server: Server<TokenInitPayload>!
     
     override func setUp() {
+        // Point the client and server at each other
         clientMessenger = TestMessenger()
         serverMessenger = TestMessenger()
-        
         clientMessenger.other = serverMessenger
         serverMessenger.other = clientMessenger
         
@@ -24,7 +24,7 @@ class GraphqlTransportWSTests: XCTestCase {
         let api = TestAPI()
         let context = TestContext()
         
-        server = Server(
+        server = Server<TokenInitPayload>(
             messenger: serverMessenger,
             onExecute: { graphQLRequest in
                 api.execute(
@@ -48,7 +48,7 @@ class GraphqlTransportWSTests: XCTestCase {
         var messages = [String]()
         let completeExpectation = XCTestExpectation()
         
-        let client = Client(messenger: clientMessenger)
+        let client = Client<TokenInitPayload>(messenger: clientMessenger)
         client.onMessage { message, _ in
             messages.append(message)
             completeExpectation.fulfill()
@@ -81,14 +81,14 @@ class GraphqlTransportWSTests: XCTestCase {
         var messages = [String]()
         let completeExpectation = XCTestExpectation()
         
-        let client = Client(messenger: clientMessenger)
+        let client = Client<TokenInitPayload>(messenger: clientMessenger)
         client.onMessage { message, _ in
             messages.append(message)
             completeExpectation.fulfill()
         }
         
         client.sendConnectionInit(
-            payload: ConnectionInitAuth(
+            payload: TokenInitPayload(
                 authToken: ""
             )
         )
@@ -107,7 +107,7 @@ class GraphqlTransportWSTests: XCTestCase {
         var messages = [String]()
         let completeExpectation = XCTestExpectation()
         
-        let client = Client(messenger: clientMessenger)
+        let client = Client<TokenInitPayload>(messenger: clientMessenger)
         client.onConnectionAck { _, client in
             client.sendStart(
                 payload: GraphQLRequest(
@@ -131,7 +131,7 @@ class GraphqlTransportWSTests: XCTestCase {
         }
         
         client.sendConnectionInit(
-            payload: ConnectionInitAuth(
+            payload: TokenInitPayload(
                 authToken: ""
             )
         )
@@ -154,7 +154,7 @@ class GraphqlTransportWSTests: XCTestCase {
         var dataIndex = 1
         let dataIndexMax = 3
         
-        let client = Client(messenger: clientMessenger)
+        let client = Client<TokenInitPayload>(messenger: clientMessenger)
         client.onConnectionAck { _, client in
             client.sendStart(
                 payload: GraphQLRequest(
@@ -191,7 +191,7 @@ class GraphqlTransportWSTests: XCTestCase {
         }
         
         client.sendConnectionInit(
-            payload: ConnectionInitAuth(
+            payload: TokenInitPayload(
                 authToken: ""
             )
         )

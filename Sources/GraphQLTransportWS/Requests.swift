@@ -15,24 +15,14 @@ import GraphQL
 /// ```
 
 /// A general request. This object's type is used to triage to other, more specific request objects.
-public struct Request: Equatable, JsonEncodable {
+struct Request: Equatable, JsonEncodable {
     let type: RequestMessageType
 }
 
 /// A websocket `connection_init` request from the client to the server
-public struct ConnectionInitRequest: Equatable, JsonEncodable {
+struct ConnectionInitRequest<InitPayload: Codable & Equatable>: Equatable, JsonEncodable {
     var type = RequestMessageType.connectionInit
-    public let payload: ConnectionInitAuth?
-}
-
-// TODO: Make this structure user-defined
-/// Authorization format for a websocket `connection_init` request from the client to the server
-public struct ConnectionInitAuth: Equatable, JsonEncodable {
-    public let authToken: String
-    
-    public init(authToken: String) {
-        self.authToken = authToken
-    }
+    let payload: InitPayload
 }
 
 /// A websocket `subscribe` request from the client to the server
