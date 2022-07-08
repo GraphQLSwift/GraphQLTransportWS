@@ -41,7 +41,7 @@ public class Server<InitPayload: Equatable & Codable> {
         self.onExecute = onExecute
         self.onSubscribe = onSubscribe
         
-        messenger.onRecieve { message in
+        messenger.onReceive { message in
             self.onMessage(message)
             
             // Detect and ignore error responses.
