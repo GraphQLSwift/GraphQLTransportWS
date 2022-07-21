@@ -6,7 +6,7 @@ import GraphQLRxSwift
 import NIO
 import RxSwift
 
-/// Server implements the server-side portion of the protocol, allowing a few callbacks for customization.
+/// Server implements the server-side portion of the protocol, allowing a few callbacks for customization. 0 or 1 subscriptions per connection and no more.
 ///
 /// By default, there are no authorization checks
 public class Server<InitPayload: Equatable & Codable> {
@@ -18,6 +18,7 @@ public class Server<InitPayload: Equatable & Codable> {
     
     var auth: (InitPayload) throws -> Void = { _ in }
     var onExit: () -> Void = { }
+    var onComplete: () -> Void = {}
     var onMessage: (String) -> Void = { _ in }
     
     var initialized = false
@@ -64,6 +65,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 return
             }
             
+            // handle incoing message
             switch request.type {
                 case .connectionInit:
                     guard let connectionInitRequest = try? self.decoder.decode(ConnectionInitRequest<InitPayload>.self, from: data) else {
@@ -105,6 +107,12 @@ public class Server<InitPayload: Equatable & Codable> {
     /// - Parameter callback: The callback to assign
     public func onMessage(_ callback: @escaping (String) -> Void) {
         self.onMessage = callback
+    }
+    
+    /// Define the callback run on receipt of a `complete` message
+    /// - Parameter callback: The callback to assign
+    public func onComplete(_ callback: @escaping () -> Void) {
+        self.onComplete = callback
     }
     
     private func onConnectionInit(_ connectionInitRequest: ConnectionInitRequest<InitPayload>) {
@@ -198,6 +206,7 @@ public class Server<InitPayload: Equatable & Codable> {
             self.error(.notInitialized())
             return
         }
+        onComplete()
     }
     
     /// Send a `connection_ack` response through the messenger
