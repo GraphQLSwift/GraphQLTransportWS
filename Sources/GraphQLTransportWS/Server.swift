@@ -6,7 +6,7 @@ import GraphQLRxSwift
 import NIO
 import RxSwift
 
-/// Server implements the server-side portion of the protocol, allowing a few callbacks for customization.  Handles 0 or 1 subscriptions per connection and no more.
+/// Server implements the server-side portion of the protocol, allowing a few callbacks for customization. 0 or 1 subscriptions per connection and no more.
 ///
 /// By default, there are no authorization checks
 public class Server<InitPayload: Equatable & Codable> {
@@ -18,7 +18,8 @@ public class Server<InitPayload: Equatable & Codable> {
     
     var auth: (InitPayload) throws -> Void = { _ in }
     var onExit: () -> Void = { }
-    var onComplete: () -> Void = {}
+    var onOperationComplete: () -> Void = {}
+    var onOperationError: () -> Void = {}
     var onMessage: (String) -> Void = { _ in }
     
     var initialized = false
@@ -65,7 +66,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 return
             }
             
-            // handle incoming message
+            // handle incoing message
             switch request.type {
                 case .connectionInit:
                     guard let connectionInitRequest = try? self.decoder.decode(ConnectionInitRequest<InitPayload>.self, from: data) else {
@@ -84,7 +85,7 @@ public class Server<InitPayload: Equatable & Codable> {
                         self.error(.invalidRequestFormat(messageType: .complete))
                         return
                     }
-                    self.onComplete(completeRequest)
+                    self.onSubscribeComplete(completeRequest)
                 case .unknown:
                     self.error(.invalidType())
             }
@@ -109,10 +110,16 @@ public class Server<InitPayload: Equatable & Codable> {
         self.onMessage = callback
     }
     
-    /// Define the callback run on receipt of a `complete` message
+    /// Define the callback run on the completion a full operation (query/mutation, end of subscription)
     /// - Parameter callback: The callback to assign
-    public func onComplete(_ callback: @escaping () -> Void) {
-        self.onComplete = callback
+    public func onOperationComplete(_ callback: @escaping () -> Void) {
+        self.onOperationComplete = callback
+    }
+    
+    /// Define the callback to run on error of any full operation (failed query, interrupted subscription)
+    /// - Parameter callback: The callback to assign
+    public func onOperationError(_ callback: @escaping () -> Void) {
+        self.onOperationError = callback
     }
     
     private func onConnectionInit(_ connectionInitRequest: ConnectionInitRequest<InitPayload>) {
@@ -201,12 +208,12 @@ public class Server<InitPayload: Equatable & Codable> {
         }
     }
     
-    private func onComplete(_: CompleteRequest) {
+    private func onSubscribeComplete(_: CompleteRequest) {
         guard initialized else {
             self.error(.notInitialized())
             return
         }
-        onComplete()
+        onOperationComplete()
     }
     
     /// Send a `connection_ack` response through the messenger
@@ -236,6 +243,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 id: id
             ).toJSON(encoder)
         )
+        self.onOperationComplete()
     }
     
     /// Send an `error` response through the messenger
@@ -247,6 +255,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 id: id
             ).toJSON(encoder)
         )
+        self.onOperationError()
     }
     
     /// Send an `error` response through the messenger
