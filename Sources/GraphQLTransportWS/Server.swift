@@ -18,6 +18,8 @@ public class Server<InitPayload: Equatable & Codable> {
     
     var auth: (InitPayload) throws -> Void = { _ in }
     var onExit: () -> Void = { }
+    var onOperationComplete: (String) -> Void = { _ in }
+    var onOperationError: (String) -> Void = { _ in }
     var onMessage: (String) -> Void = { _ in }
     
     var initialized = false
@@ -64,6 +66,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 return
             }
             
+            // handle incoming message
             switch request.type {
                 case .connectionInit:
                     guard let connectionInitRequest = try? self.decoder.decode(ConnectionInitRequest<InitPayload>.self, from: data) else {
@@ -82,7 +85,7 @@ public class Server<InitPayload: Equatable & Codable> {
                         self.error(.invalidRequestFormat(messageType: .complete))
                         return
                     }
-                    self.onComplete(completeRequest)
+                self.onOperationComplete(completeRequest.id)
                 case .unknown:
                     self.error(.invalidType())
             }
@@ -90,7 +93,8 @@ public class Server<InitPayload: Equatable & Codable> {
     }
     
     /// Define the callback run during `connection_init` resolution that allows authorization using the `payload`.
-    /// Throw to indicate that authorization has failed.    /// - Parameter callback: The callback to assign
+    /// Throw to indicate that authorization has failed.
+    ///  - Parameter callback: The callback to assign
     public func auth(_ callback: @escaping (InitPayload) throws -> Void) {
         self.auth = callback
     }
@@ -105,6 +109,18 @@ public class Server<InitPayload: Equatable & Codable> {
     /// - Parameter callback: The callback to assign
     public func onMessage(_ callback: @escaping (String) -> Void) {
         self.onMessage = callback
+    }
+    
+    /// Define the callback run on the completion a full operation (query/mutation, end of subscription)
+    /// - Parameter callback: The callback to assign,  taking a string parameter for the ID of the operation
+    public func onOperationComplete(_ callback: @escaping (String) -> Void) {
+        self.onOperationComplete = callback
+    }
+    
+    /// Define the callback to run on error of any full operation (failed query, interrupted subscription)
+    /// - Parameter callback: The callback to assign, taking a string parameter for the ID of the operation
+    public func onOperationError(_ callback: @escaping (String) -> Void) {
+        self.onOperationError = callback
     }
     
     private func onConnectionInit(_ connectionInitRequest: ConnectionInitRequest<InitPayload>) {
@@ -193,13 +209,6 @@ public class Server<InitPayload: Equatable & Codable> {
         }
     }
     
-    private func onComplete(_: CompleteRequest) {
-        guard initialized else {
-            self.error(.notInitialized())
-            return
-        }
-    }
-    
     /// Send a `connection_ack` response through the messenger
     private func sendConnectionAck(_ payload: [String: Map]? = nil) {
         guard let messenger = messenger else { return }
@@ -227,6 +236,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 id: id
             ).toJSON(encoder)
         )
+        self.onOperationComplete(id)
     }
     
     /// Send an `error` response through the messenger
@@ -238,6 +248,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 id: id
             ).toJSON(encoder)
         )
+        self.onOperationError(id)
     }
     
     /// Send an `error` response through the messenger
