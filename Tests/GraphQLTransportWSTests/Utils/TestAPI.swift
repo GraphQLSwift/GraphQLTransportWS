@@ -11,6 +11,8 @@ struct TestAPI: API {
     let resolver = TestResolver()
     let context = TestContext()
 
+    // known valid
+    // swiftlint:disable:next force_try
     let schema = try! Schema<TestResolver, TestContext> {
         Query {
             Field("hello", at: TestResolver.hello)

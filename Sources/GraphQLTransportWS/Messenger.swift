@@ -7,17 +7,17 @@ public protocol Messenger: AnyObject {
 
     /// Send a message through this messenger
     /// - Parameter message: The message to send
-    func send<S>(_ message: S) -> Void where S: Collection, S.Element == Character
+    func send<S>(_ message: S) where S: Collection, S.Element == Character
 
     /// Set the callback that should be run when a message is recieved
-    func onReceive(callback: @escaping (String) -> Void) -> Void
+    func onReceive(callback: @escaping (String) -> Void)
 
     /// Close the messenger
-    func close() -> Void
+    func close()
 
     /// Indicate that the messenger experienced an error.
     /// - Parameters:
     ///   - message: The message describing the error
     ///   - code: An error code
-    func error(_ message: String, code: Int) -> Void
+    func error(_ message: String, code: Int)
 }
