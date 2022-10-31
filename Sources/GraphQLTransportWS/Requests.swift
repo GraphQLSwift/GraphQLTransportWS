@@ -1,5 +1,3 @@
-// Copyright (c) 2021 PassiveLogic, Inc.
-
 import Foundation
 import GraphQL
 
@@ -32,6 +30,13 @@ struct SubscribeRequest: Equatable, JsonEncodable {
     let id: String
 }
 
+/// A websocket `next` request from the client to the server
+public struct NextRequest: Equatable, JsonEncodable {
+    var type = RequestMessageType.next
+    let payload: GraphQLRequest
+    let id: String
+}
+
 /// A websocket `complete` request from the client to the server
 struct CompleteRequest: Equatable, JsonEncodable {
     var type = RequestMessageType.complete
@@ -42,9 +47,10 @@ struct CompleteRequest: Equatable, JsonEncodable {
 enum RequestMessageType: String, Codable {
     case connectionInit = "connection_init"
     case subscribe
+    case next
     case complete
     case unknown
-    
+
     public init(from decoder: Decoder) throws {
         guard let value = try? decoder.singleValueContainer().decode(String.self) else {
             self = .unknown

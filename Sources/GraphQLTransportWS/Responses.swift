@@ -1,5 +1,3 @@
-// Copyright (c) 2021 PassiveLogic, Inc.
-
 import Foundation
 import GraphQL
 
@@ -12,7 +10,7 @@ struct Response: Equatable, JsonEncodable {
 public struct ConnectionAckResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
     public let payload: [String: Map]?
-    
+
     init(_ payload: [String: Map]? = nil) {
         self.type = .connectionAck
         self.payload = payload
@@ -24,7 +22,7 @@ public struct NextResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
     public let payload: GraphQLResult?
     public let id: String
-    
+
     init(_ payload: GraphQLResult? = nil, id: String) {
         self.type = .next
         self.payload = payload
@@ -36,7 +34,7 @@ public struct NextResponse: Equatable, JsonEncodable {
 public struct CompleteResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
     public let id: String
-    
+
     init(id: String) {
         self.type = .complete
         self.id = id
@@ -48,7 +46,7 @@ public struct ErrorResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
     public let payload: [GraphQLError]
     public let id: String
-    
+
     init(_ errors: [Error], id: String) {
         let graphQLErrors = errors.map { error -> GraphQLError in
             switch error {
@@ -71,7 +69,7 @@ enum ResponseMessageType: String, Codable {
     case error
     case complete
     case unknown
-    
+
     init(from decoder: Decoder) throws {
         guard let value = try? decoder.singleValueContainer().decode(String.self) else {
             self = .unknown
@@ -86,7 +84,7 @@ enum ResponseMessageType: String, Codable {
 struct EncodingErrorResponse: Equatable, Codable, JsonEncodable {
     let type: ResponseMessageType
     let payload: [String: String]
-    
+
     init(_ errorMessage: String) {
         self.type = .error
         self.payload = ["error": errorMessage]
