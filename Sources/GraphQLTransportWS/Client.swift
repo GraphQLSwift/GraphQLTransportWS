@@ -36,7 +36,7 @@ public class Client<InitPayload: Equatable & Codable> {
                 return
             }
 
-            guard let json = message.data(using: .utf8) else {
+            guard let json = Data(message.utf8) else {
                 self.error(.invalidEncoding())
                 return
             }
@@ -142,6 +142,8 @@ public class Client<InitPayload: Equatable & Codable> {
         )
     }
 
+    /// Add an observable object for this client that will fire off `Next` messages to the server as updates happen.
+    /// - Parameter observable: `Observable<EventLoopFuture<GraphQLRequest>>` to subscribe to for changes.
     public func addObservable(observable: Observable<EventLoopFuture<GraphQLRequest>>) {
         observable.subscribe(
             onNext: { [weak self] resultFuture in

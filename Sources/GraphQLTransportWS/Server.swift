@@ -54,7 +54,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 return
             }
 
-            guard let data = message.data(using: .utf8) else {
+            guard let data = Data(message.utf8) else {
                 self.error(.invalidEncoding())
                 return
             }
@@ -206,6 +206,9 @@ public class Server<InitPayload: Equatable & Codable> {
                     self.sendError(result.errors, id: id)
                     return
                 }
+
+                // known safe cast
+                // swiftlint:disable:next force_cast
                 let stream = streamOpt as! ObservableSubscriptionEventStream
                 let observable = stream.observable
 

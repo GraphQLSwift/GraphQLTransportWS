@@ -6,7 +6,7 @@ import XCTest
 
 @testable import GraphQLTransportWS
 
-class GraphqlTransportWSTests: XCTestCase {
+final class GraphqlTransportWSTests: XCTestCase {
     var clientMessenger: TestMessenger!
     var serverMessenger: TestMessenger!
     var server: Server<TokenInitPayload>!
@@ -203,7 +203,7 @@ class GraphqlTransportWSTests: XCTestCase {
         }
 
         client.onNext { _, _ in
-            dataIndex = dataIndex + 1
+            dataIndex += 1
             if dataIndex <= dataIndexMax {
                 pubsub.onNext("hello \(dataIndex)")
             }
@@ -306,7 +306,7 @@ class GraphqlTransportWSTests: XCTestCase {
         }
 
         client.onNext { _, _ in
-            dataIndex = dataIndex + 1
+            dataIndex += 1
             if dataIndex <= dataIndexMax {
                 pubsub.onNext("hello \(dataIndex)")
             }
