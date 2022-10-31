@@ -10,7 +10,7 @@ import RxSwift
 public class Server<InitPayload: Equatable & Codable> {
     // We keep this weak because we strongly inject this object into the messenger callback
     weak var messenger: Messenger?
-    
+
     let onExecute: (GraphQLRequest) -> EventLoopFuture<GraphQLResult>
     let onSubscribe: (GraphQLRequest) -> EventLoopFuture<SubscriptionResult>
     var auth: (InitPayload) throws -> EventLoopFuture<Void>
@@ -19,13 +19,14 @@ public class Server<InitPayload: Equatable & Codable> {
     var onOperationComplete: (String) -> Void = { _ in }
     var onOperationError: (String) -> Void = { _ in }
     var onMessage: (String) -> Void = { _ in }
-    
+    var onNext: (NextRequest, Server) -> Void = { _, _ in }
+
     var initialized = false
-    
+
     let disposeBag = DisposeBag()
     let encoder = GraphQLJSONEncoder()
     let decoder = JSONDecoder()
-    
+
     /// Create a new server
     ///
     /// - Parameters:
@@ -46,18 +47,18 @@ public class Server<InitPayload: Equatable & Codable> {
         
         messenger.onReceive { message in
             self.onMessage(message)
-            
+
             // Detect and ignore error responses.
             if message.starts(with: "44") {
                 // TODO: Determine what to do with returned error messages
                 return
             }
-            
+
             guard let data = message.data(using: .utf8) else {
                 self.error(.invalidEncoding())
                 return
             }
-            
+
             let request: Request
             do {
                 request = try self.decoder.decode(Request.self, from: data)
@@ -66,7 +67,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 self.error(.noType())
                 return
             }
-            
+
             // handle incoming message
             switch request.type {
                 case .connectionInit:
@@ -86,50 +87,81 @@ public class Server<InitPayload: Equatable & Codable> {
                         self.error(.invalidRequestFormat(messageType: .complete))
                         return
                     }
-                self.onOperationComplete(completeRequest.id)
+                    self.onOperationComplete(completeRequest.id)
                 case .unknown:
                     self.error(.invalidType())
+                // Addition for Datasync: Servers may now receive "next" responses from clients
+                case .next:
+                    guard let nextRequest = try? self.decoder.decode(NextRequest.self, from: data) else {
+                        self.error(.invalidRequestFormat(messageType: .next))
+                        return
+                    }
+                    do {
+                        if try nextRequest.payload.isSubscription() {
+                            self
+                                .error(.init(
+                                    "Cannot initialize a subscription within another subscription. Payload must be query or mutation",
+                                    code: .invalidRequestFormat
+                                ))
+                        }
+                        else {
+                            self.onNext(nextRequest, self)
+                        }
+                    }
+                    catch {
+                        self.error(.graphQLError(error))
+                    }
             }
         }
     }
-    
+
     /// Define the callback run during `connection_init` resolution that allows authorization using the `payload`.
     /// Throw or fail the future to indicate that authorization has failed.
     ///  - Parameter callback: The callback to assign
     public func auth(_ callback: @escaping (InitPayload) throws -> EventLoopFuture<Void>) {
         self.auth = callback
     }
-    
+
     /// Define the callback run when the communication is shut down, either by the client or server
     /// - Parameter callback: The callback to assign
     public func onExit(_ callback: @escaping () -> Void) {
         self.onExit = callback
     }
-    
+
     /// Define the callback run on receipt of any message
     /// - Parameter callback: The callback to assign
     public func onMessage(_ callback: @escaping (String) -> Void) {
         self.onMessage = callback
     }
-    
+
     /// Define the callback run on the completion a full operation (query/mutation, end of subscription)
     /// - Parameter callback: The callback to assign,  taking a string parameter for the ID of the operation
     public func onOperationComplete(_ callback: @escaping (String) -> Void) {
         self.onOperationComplete = callback
     }
-    
+
     /// Define the callback to run on error of any full operation (failed query, interrupted subscription)
     /// - Parameter callback: The callback to assign, taking a string parameter for the ID of the operation
     public func onOperationError(_ callback: @escaping (String) -> Void) {
         self.onOperationError = callback
     }
-    
+
+    /// Define the callback run on receipt of a `next` message
+    ///
+    /// This is the main addition for the DataSync extension for this spec - the server
+    /// can now define custom handling for frames containing `GraphQLResult`
+    /// objects sent by the client.
+    /// - Parameter callback: The callback to assign
+    public func onNext(_ callback: @escaping (NextRequest, Server) -> Void) {
+        self.onNext = callback
+    }
+
     private func onConnectionInit(_ connectionInitRequest: ConnectionInitRequest<InitPayload>) {
         guard !initialized else {
             self.error(.tooManyInitializations())
             return
         }
-        
+
         do {
             let authResult = try self.auth(connectionInitRequest.payload)
             authResult.whenSuccess {
@@ -146,16 +178,16 @@ public class Server<InitPayload: Equatable & Codable> {
             return
         }
     }
-    
+
     private func onSubscribe(_ subscribeRequest: SubscribeRequest) {
         guard initialized else {
             self.error(.notInitialized())
             return
         }
-        
+
         let id = subscribeRequest.id
         let graphQLRequest = subscribeRequest.payload
-        
+
         var isStreaming = false
         do {
             isStreaming = try graphQLRequest.isSubscription()
@@ -164,7 +196,7 @@ public class Server<InitPayload: Equatable & Codable> {
             self.sendError(error, id: id)
             return
         }
-        
+
         if isStreaming {
             let subscribeFuture = onSubscribe(graphQLRequest)
             subscribeFuture.whenSuccess { [weak self] result in
@@ -176,7 +208,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 }
                 let stream = streamOpt as! ObservableSubscriptionEventStream
                 let observable = stream.observable
-                
+
                 observable.subscribe(
                     onNext: { [weak self] resultFuture in
                         guard let self = self else { return }
@@ -215,7 +247,7 @@ public class Server<InitPayload: Equatable & Codable> {
             }
         }
     }
-    
+
     /// Send a `connection_ack` response through the messenger
     private func sendConnectionAck(_ payload: [String: Map]? = nil) {
         guard let messenger = messenger else { return }
@@ -223,7 +255,7 @@ public class Server<InitPayload: Equatable & Codable> {
             ConnectionAckResponse(payload).toJSON(encoder)
         )
     }
-    
+
     /// Send a `next` response through the messenger
     private func sendNext(_ payload: GraphQLResult? = nil, id: String) {
         guard let messenger = messenger else { return }
@@ -234,7 +266,7 @@ public class Server<InitPayload: Equatable & Codable> {
             ).toJSON(encoder)
         )
     }
-    
+
     /// Send a `complete` response through the messenger
     private func sendComplete(id: String) {
         guard let messenger = messenger else { return }
@@ -245,7 +277,7 @@ public class Server<InitPayload: Equatable & Codable> {
         )
         self.onOperationComplete(id)
     }
-    
+
     /// Send an `error` response through the messenger
     private func sendError(_ errors: [Error], id: String) {
         guard let messenger = messenger else { return }
@@ -257,18 +289,18 @@ public class Server<InitPayload: Equatable & Codable> {
         )
         self.onOperationError(id)
     }
-    
+
     /// Send an `error` response through the messenger
     private func sendError(_ error: Error, id: String) {
         self.sendError([error], id: id)
     }
-    
+
     /// Send an `error` response through the messenger
     private func sendError(_ errorMessage: String, id: String) {
         self.sendError(GraphQLError(message: errorMessage), id: id)
     }
-    
-    /// Send an error through the messenger and close the connection
+
+    /// Send an error through the messenger
     private func error(_ error: GraphQLTransportWSError) {
         guard let messenger = messenger else { return }
         messenger.error(error.message, code: error.code.rawValue)
