@@ -19,7 +19,7 @@ public class Server<InitPayload: Equatable & Codable> {
     var onOperationComplete: (String) -> Void = { _ in }
     var onOperationError: (String) -> Void = { _ in }
     var onMessage: (String) -> Void = { _ in }
-    var onNext: (NextRequest, Server) -> Void = { _, _ in }
+    var onNext: (NextResponse, Server) -> Void = { _, _ in }
 
     var initialized = false
 
@@ -89,25 +89,15 @@ public class Server<InitPayload: Equatable & Codable> {
                     self.error(.invalidType())
                 // Addition for Datasync: Servers may now receive "next" responses from clients
                 case .next:
-                    guard let nextRequest = try? self.decoder.decode(NextRequest.self, from: data) else {
+                    guard self.initialized else {
+                        self.error(.notInitialized())
+                        return
+                    }
+                    guard let nextMessage = try? self.decoder.decode(NextResponse.self, from: data) else {
                         self.error(.invalidRequestFormat(messageType: .next))
                         return
                     }
-                    do {
-                        if try nextRequest.payload.isSubscription() {
-                            self
-                                .error(.init(
-                                    "Cannot initialize a subscription within another subscription. Payload must be query or mutation",
-                                    code: .invalidRequestFormat
-                                ))
-                        }
-                        else {
-                            self.onNext(nextRequest, self)
-                        }
-                    }
-                    catch {
-                        self.error(.graphQLError(error))
-                    }
+                    self.onNext(nextMessage, self)
             }
         }
     }
@@ -149,7 +139,7 @@ public class Server<InitPayload: Equatable & Codable> {
     /// can now define custom handling for frames containing `GraphQLResult`
     /// objects sent by the client.
     /// - Parameter callback: The callback to assign
-    public func onNext(_ callback: @escaping (NextRequest, Server) -> Void) {
+    public func onNext(_ callback: @escaping (NextResponse, Server) -> Void) {
         self.onNext = callback
     }
 

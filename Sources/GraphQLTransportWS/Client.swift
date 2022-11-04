@@ -144,12 +144,12 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Add an observable object for this client that will fire off `Next` messages to the server as updates happen.
     /// - Parameter observable: `Observable<EventLoopFuture<GraphQLRequest>>` to subscribe to for changes.
-    public func addObservable(observable: Observable<EventLoopFuture<GraphQLRequest>>) {
+    public func addObservableSubscription(observable: Observable<EventLoopFuture<GraphQLResult>>) {
         observable.subscribe(
             onNext: { [weak self] resultFuture in
                 guard let self = self else { return }
-                resultFuture.whenSuccess { request in
-                    self.sendNext(payload: request, id: UUID().uuidString)
+                resultFuture.whenSuccess { result in
+                    self.sendNext(payload: result, id: UUID().uuidString)
                 }
                 resultFuture.whenFailure { error in
                     self.error(.graphQLError(error))
@@ -162,11 +162,11 @@ public class Client<InitPayload: Equatable & Codable> {
     /// - Parameters:
     ///   - payload: `GraphQLRequest` object for the server to handle
     ///   - id: id of the message
-    private func sendNext(payload: GraphQLRequest, id: String) {
+    private func sendNext(payload: GraphQLResult, id: String) {
         guard let messenger = messenger else { return }
         messenger.send(
-            NextRequest(
-                payload: payload,
+            NextResponse(
+                payload,
                 id: id
             ).toJSON(encoder)
         )

@@ -39,22 +39,9 @@ struct TestResolver {
     }
 }
 
-func testObservable(loop: EventLoop, sendAsSubscription: Bool = false) -> Observable<EventLoopFuture<GraphQLRequest>> {
+func testObservable(loop: EventLoop) -> Observable<EventLoopFuture<GraphQLResult>> {
     return Observable.create { observer in
-        observer.on(.next(loop.makeSucceededFuture(GraphQLRequest(
-            query:
-            sendAsSubscription ?
-                """
-                subscription {
-                    hello
-                }
-                """ :
-                """
-                query {
-                    hello
-                }
-                """
-        ))))
+        observer.on(.next(loop.makeSucceededFuture(GraphQLResult(data: ["Some Data": "For you"], errors: []))))
         return Disposables.create()
     }
 }
