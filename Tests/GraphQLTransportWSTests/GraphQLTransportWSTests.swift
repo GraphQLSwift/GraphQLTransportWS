@@ -242,7 +242,7 @@ final class GraphqlTransportWSTests: XCTestCase {
 
         let client = Client<TokenInitPayload>(messenger: clientMessenger)
         client.onConnectionAck { _, client in
-            client.addObservable(observable: testObservable(loop: self.eventLoop))
+            client.addObservableSubscription(observable: testObservable(loop: self.eventLoop))
         }
 
         client.onError { _, _ in
@@ -302,7 +302,7 @@ final class GraphqlTransportWSTests: XCTestCase {
             pubsub.onNext("hello \(dataIndex)")
 
             // Once the subscription has begun send a `next` frame from the client as well
-            client.addObservable(observable: testObservable(loop: self.eventLoop))
+            client.addObservableSubscription(observable: testObservable(loop: self.eventLoop))
         }
 
         client.onNext { _, _ in
@@ -351,34 +351,26 @@ final class GraphqlTransportWSTests: XCTestCase {
         )
     }
 
-    func testDisallowedNestedSubscriptions() throws {
+    func testNextUninitialized() throws {
         var messages = [String]()
         let completeExpectation = XCTestExpectation()
-        completeExpectation.expectedFulfillmentCount = 2
 
         let client = Client<TokenInitPayload>(messenger: clientMessenger)
-        client.onConnectionAck { _, client in
-            client.addObservable(observable: testObservable(loop: self.eventLoop, sendAsSubscription: true))
-        }
 
         client.onMessage { message, _ in
             messages.append(message)
             completeExpectation.fulfill()
         }
 
-        client.sendConnectionInit(
-            payload: TokenInitPayload(
-                authToken: ""
-            )
-        )
+        client.addObservableSubscription(observable: testObservable(loop: self.eventLoop))
 
         wait(for: [completeExpectation], timeout: 2)
         XCTAssertEqual(
             messages.count,
-            2, // 1 connection_ack, 1 error
+            1, // 1 error
             "Messages: \(messages.description)"
         )
-        XCTAssertTrue(try XCTUnwrap(messages.last).contains(ErrorCode.invalidRequestFormat.rawValue.description))
+        XCTAssertTrue(try XCTUnwrap(messages.last).contains(ErrorCode.notInitialized.rawValue.description))
     }
 
     enum TestError: Error {

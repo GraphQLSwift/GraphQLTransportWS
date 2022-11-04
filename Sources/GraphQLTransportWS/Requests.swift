@@ -30,13 +30,6 @@ struct SubscribeRequest: Equatable, JsonEncodable {
     let id: String
 }
 
-/// A websocket `next` request from the client to the server
-public struct NextRequest: Equatable, JsonEncodable {
-    var type = RequestMessageType.next
-    let payload: GraphQLRequest
-    let id: String
-}
-
 /// A websocket `complete` request from the client to the server
 struct CompleteRequest: Equatable, JsonEncodable {
     var type = RequestMessageType.complete
