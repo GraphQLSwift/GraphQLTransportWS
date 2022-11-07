@@ -25,8 +25,9 @@ let package = Package(
                 .product(name: "GraphQLRxSwift", package: "GraphQLRxSwift"),
                 .product(name: "GraphQL", package: "GraphQL"),
                 .product(name: "NIO", package: "swift-nio"),
-                .product(name: "RxSwift", package: "RxSwift")
-            ]),
+                .product(name: "RxSwift", package: "RxSwift"),
+            ]
+        ),
         .testTarget(
             name: "GraphQLTransportWSTests",
             dependencies: ["GraphQLTransportWS"]

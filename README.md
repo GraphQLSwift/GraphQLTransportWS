@@ -1,13 +1,35 @@
-# GraphQLTransportWS
+# GraphQLTransportWS-DataSync
 
-This implements the [graphql-transport-ws WebSocket subprotocol](https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md).
-It is mainly intended for server support, but there is a basic client implementation included.
+This implements the [graphql-transport-ws WebSocket subprotocol](https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md), with the additional capability to send `GraphQLRequests` from the Client to the Server over the same websocket to support the PassiveLogic DataSync spec.
+
+It is mainly intended for server support, but there is a client implementation included for swift projects.
 
 Features:
 - Server implementation that implements defined protocol conversations
 - Client and Server types that wrap messengers
 - Codable Server and Client message structures
 - Custom authentication support
+
+## DataSync Additions
+This DataSync fork allows for `Next` messages to be handled by the Server with a custom `onNext` callback exposed. The server will detect incoming `Next` frames that contain `subscribe` requests and reject them with an error to avoid nesting subscriptions, but will allow handling logic for `query` and `mutation` requests.
+
+The Client implemeneted here now also supports sending `Next` messages to the server via adding an `Observable` object, which will automatically wrap and send `Next` frames as it updates.
+
+### Example
+*The client and the server has already gone through [successful connection initialisation.](https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md#successful-connection-initialisation)*
+1. *Client* generates a unique ID for the following operation
+2. *Client* dispatches the `Subscribe` message with the generated ID through the `id` field and the requested operation passed through the `payload` field
+*All future communication is linked through this unique ID*
+3. *Server* executes the streaming GraphQL operation
+4. *Server* checks if the generated ID is unique across active streaming subscriptions
+    - If not unique, the server will close the socket with the event `4409: Subscriber for <generated-id> already exists`
+    If unique, continue...
+5. *Server* optionally checks if the operation is valid before starting executing it, e.g. checking permissions
+    - If not valid, the server sends an `Error` message and deems the operation complete.
+    If valid, continue...
+6. *Server* & *Client* dispatch results over time with the `Next` message
+    - *Server* & *Client* handle received `Next` messages with their respectively defined callbacks. All Context is assumed to be the same between the two and is established in step 3 when the subscription is created.
+7. The operation completes as described in [the `graphql-transport-ws` protocol](https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md#streaming-operation)
 
 ## Usage
 
@@ -85,6 +107,28 @@ routes.webSocket(
                 )
             }
         )
+    }
+)
+```
+
+You can also Create a client and add an observable callback to send data back to the server:
+```swift
+let messenger = WebSocketMessenger(websocket: websocket)
+let client = Client<EmptyInitPayload>(messenger: messenger)
+
+// add an observable to the client that will automatically send `Next` frames to the server as it updates
+client.addObservable(observable: 
+    Observable.create { observer in
+    // Some simple obsererver that fulfills every future with the same query. Your observer can be much more complex.
+    observer.on(.next(loop.makeSucceededFuture(GraphQLRequest(
+            query:
+                """
+                query {
+                    hello
+                }
+                """
+        ))))
+        return Disposables.create()
     }
 )
 ```
