@@ -44,7 +44,7 @@ public class Server<InitPayload: Equatable & Codable> {
         self.onExecute = onExecute
         self.onSubscribe = onSubscribe
         self.auth = { _ in eventLoop.makeSucceededVoidFuture() }
-        
+
         messenger.onReceive { message in
             self.onMessage(message)
 

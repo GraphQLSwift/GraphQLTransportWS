@@ -106,29 +106,29 @@ final class GraphqlTransportWSTests: XCTestCase {
         server.auth { payload in
             self.eventLoop.makeFailedFuture(TestError.couldBeAnything)
         }
-        
+       
         var messages = [String]()
         let completeExpectation = XCTestExpectation()
-        
+
         let client = Client<TokenInitPayload>(messenger: clientMessenger)
         client.onMessage { message, _ in
             messages.append(message)
             completeExpectation.fulfill()
         }
-        
+
         client.sendConnectionInit(
             payload: TokenInitPayload(
                 authToken: ""
             )
         )
-        
+
         wait(for: [completeExpectation], timeout: 2)
         XCTAssertEqual(
             messages,
             ["\(ErrorCode.unauthorized): Unauthorized"]
         )
     }
-    
+
     /// Tests a single-op conversation
     func testSingleOp() throws {
         let id = UUID().description
