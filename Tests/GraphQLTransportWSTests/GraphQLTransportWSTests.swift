@@ -39,7 +39,8 @@ final class GraphqlTransportWSTests: XCTestCase {
                     context: context,
                     on: self.eventLoop
                 )
-            }
+            },
+            eventLoop: self.eventLoop
         )
     }
 
@@ -73,11 +74,39 @@ final class GraphqlTransportWSTests: XCTestCase {
     }
 
     /// Tests that throwing in the authorization callback forces an unauthorized error
-    func testAuth() throws {
-        server.auth { _ in
+    func testAuthWithThrow() throws {
+        server.auth { payload in
             throw TestError.couldBeAnything
         }
 
+        var messages = [String]()
+        let completeExpectation = XCTestExpectation()
+
+        let client = Client<TokenInitPayload>(messenger: clientMessenger)
+        client.onMessage { message, _ in
+            messages.append(message)
+            completeExpectation.fulfill()
+        }
+
+        client.sendConnectionInit(
+            payload: TokenInitPayload(
+                authToken: ""
+            )
+        )
+
+        wait(for: [completeExpectation], timeout: 2)
+        XCTAssertEqual(
+            messages,
+            ["\(ErrorCode.unauthorized): Unauthorized"]
+        )
+    }
+    
+    /// Tests that failing a future in the authorization callback forces an unauthorized error
+    func testAuthWithFailedFuture() throws {
+        server.auth { payload in
+            self.eventLoop.makeFailedFuture(TestError.couldBeAnything)
+        }
+       
         var messages = [String]()
         let completeExpectation = XCTestExpectation()
 

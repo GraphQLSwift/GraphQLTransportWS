@@ -13,9 +13,9 @@ public class Server<InitPayload: Equatable & Codable> {
 
     let onExecute: (GraphQLRequest) -> EventLoopFuture<GraphQLResult>
     let onSubscribe: (GraphQLRequest) -> EventLoopFuture<SubscriptionResult>
-
-    var auth: (InitPayload) throws -> Void = { _ in }
-    var onExit: () -> Void = {}
+    var auth: (InitPayload) throws -> EventLoopFuture<Void>
+    
+    var onExit: () -> Void = { }
     var onOperationComplete: (String) -> Void = { _ in }
     var onOperationError: (String) -> Void = { _ in }
     var onMessage: (String) -> Void = { _ in }
@@ -33,14 +33,17 @@ public class Server<InitPayload: Equatable & Codable> {
     ///   - messenger: The messenger to bind the server to.
     ///   - onExecute: Callback run during `subscribe` resolution for non-streaming queries. Typically this is `API.execute`.
     ///   - onSubscribe: Callback run during `subscribe` resolution for streaming queries. Typically this is `API.subscribe`.
+    ///   - eventLoop: EventLoop on which to perform server operations.
     public init(
         messenger: Messenger,
         onExecute: @escaping (GraphQLRequest) -> EventLoopFuture<GraphQLResult>,
-        onSubscribe: @escaping (GraphQLRequest) -> EventLoopFuture<SubscriptionResult>
+        onSubscribe: @escaping (GraphQLRequest) -> EventLoopFuture<SubscriptionResult>,
+        eventLoop: EventLoop
     ) {
         self.messenger = messenger
         self.onExecute = onExecute
         self.onSubscribe = onSubscribe
+        self.auth = { _ in eventLoop.makeSucceededVoidFuture() }
 
         messenger.onReceive { message in
             self.onMessage(message)
@@ -103,9 +106,9 @@ public class Server<InitPayload: Equatable & Codable> {
     }
 
     /// Define the callback run during `connection_init` resolution that allows authorization using the `payload`.
-    /// Throw to indicate that authorization has failed.
+    /// Throw or fail the future to indicate that authorization has failed.
     ///  - Parameter callback: The callback to assign
-    public func auth(_ callback: @escaping (InitPayload) throws -> Void) {
+    public func auth(_ callback: @escaping (InitPayload) throws -> EventLoopFuture<Void>) {
         self.auth = callback
     }
 
@@ -150,14 +153,20 @@ public class Server<InitPayload: Equatable & Codable> {
         }
 
         do {
-            try self.auth(connectionInitRequest.payload)
+            let authResult = try self.auth(connectionInitRequest.payload)
+            authResult.whenSuccess {
+                self.initialized = true
+                self.sendConnectionAck()
+            }
+            authResult.whenFailure { error in
+                self.error(.unauthorized())
+                return
+            }
         }
         catch {
             self.error(.unauthorized())
             return
         }
-        initialized = true
-        self.sendConnectionAck()
     }
 
     private func onSubscribe(_ subscribeRequest: SubscribeRequest) {
