@@ -14,8 +14,8 @@ public class Server<InitPayload: Equatable & Codable> {
     let onExecute: (GraphQLRequest) -> EventLoopFuture<GraphQLResult>
     let onSubscribe: (GraphQLRequest) -> EventLoopFuture<SubscriptionResult>
     var auth: (InitPayload) throws -> EventLoopFuture<Void>
-    
-    var onExit: () -> Void = { }
+
+    var onExit: () -> Void = {}
     var onOperationComplete: (String) -> Void = { _ in }
     var onOperationError: (String) -> Void = { _ in }
     var onMessage: (String) -> Void = { _ in }
@@ -54,10 +54,7 @@ public class Server<InitPayload: Equatable & Codable> {
                 return
             }
 
-            guard let data = Data(message.utf8) else {
-                self.error(.invalidEncoding())
-                return
-            }
+            let data = Data(message.utf8)
 
             let request: Request
             do {
@@ -158,9 +155,8 @@ public class Server<InitPayload: Equatable & Codable> {
                 self.initialized = true
                 self.sendConnectionAck()
             }
-            authResult.whenFailure { error in
+            authResult.whenFailure { _ in
                 self.error(.unauthorized())
-                return
             }
         }
         catch {

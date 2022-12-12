@@ -3,11 +3,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "GraphQLTransportWS",
+    name: "GraphQLTransportWS-DataSync",
     products: [
         .library(
-            name: "GraphQLTransportWS",
-            targets: ["GraphQLTransportWS"]
+            name: "GraphQLTransportWS-DataSync",
+            targets: ["GraphQLTransportWS-DataSync"]
         ),
     ],
     dependencies: [
@@ -19,7 +19,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "GraphQLTransportWS",
+            name: "GraphQLTransportWS-DataSync",
             dependencies: [
                 .product(name: "Graphiti", package: "Graphiti"),
                 .product(name: "GraphQLRxSwift", package: "GraphQLRxSwift"),
@@ -29,8 +29,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "GraphQLTransportWSTests",
-            dependencies: ["GraphQLTransportWS"]
+            name: "GraphQLTransportWSTests-DataSync",
+            dependencies: ["GraphQLTransportWS-DataSync"]
         ),
     ]
 )

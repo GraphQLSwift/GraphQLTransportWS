@@ -36,10 +36,7 @@ public class Client<InitPayload: Equatable & Codable> {
                 return
             }
 
-            guard let json = Data(message.utf8) else {
-                self.error(.invalidEncoding())
-                return
-            }
+            let json = Data(message.utf8)
 
             let response: Response
             do {

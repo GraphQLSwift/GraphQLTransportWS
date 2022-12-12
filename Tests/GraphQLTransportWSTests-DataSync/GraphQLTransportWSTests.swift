@@ -4,7 +4,7 @@ import NIO
 import RxSwift
 import XCTest
 
-@testable import GraphQLTransportWS
+@testable import GraphQLTransportWS_DataSync
 
 final class GraphqlTransportWSTests: XCTestCase {
     var clientMessenger: TestMessenger!
@@ -75,7 +75,7 @@ final class GraphqlTransportWSTests: XCTestCase {
 
     /// Tests that throwing in the authorization callback forces an unauthorized error
     func testAuthWithThrow() throws {
-        server.auth { payload in
+        server.auth { _ in
             throw TestError.couldBeAnything
         }
 
@@ -100,13 +100,13 @@ final class GraphqlTransportWSTests: XCTestCase {
             ["\(ErrorCode.unauthorized): Unauthorized"]
         )
     }
-    
+
     /// Tests that failing a future in the authorization callback forces an unauthorized error
     func testAuthWithFailedFuture() throws {
-        server.auth { payload in
+        server.auth { _ in
             self.eventLoop.makeFailedFuture(TestError.couldBeAnything)
         }
-       
+
         var messages = [String]()
         let completeExpectation = XCTestExpectation()
 
