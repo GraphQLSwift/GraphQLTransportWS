@@ -159,7 +159,7 @@ public class Client<InitPayload: Equatable & Codable> {
     /// - Parameters:
     ///   - payload: `GraphQLRequest` object for the server to handle
     ///   - id: id of the message
-    private func sendNext(payload: GraphQLResult, id: String) {
+    public func sendNext(payload: GraphQLResult, id: String) {
         guard let messenger = messenger else { return }
         messenger.send(
             NextResponse(

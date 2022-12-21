@@ -254,6 +254,7 @@ final class GraphqlTransportWSTests: XCTestCase {
         }
         server.onNext { _, _ in
             completeExpectation.fulfill()
+            return self.eventLoop.makeSucceededVoidFuture()
         }
 
         client.sendConnectionInit(
@@ -326,6 +327,7 @@ final class GraphqlTransportWSTests: XCTestCase {
 
         server.onNext { _, _ in
             serverCompleteExpectation.fulfill()
+            return self.eventLoop.makeSucceededVoidFuture()
         }
         server.onMessage { message in
             serverMessages.append(message)
@@ -371,6 +373,48 @@ final class GraphqlTransportWSTests: XCTestCase {
             "Messages: \(messages.description)"
         )
         XCTAssertTrue(try XCTUnwrap(messages.last).contains(ErrorCode.notInitialized.rawValue.description))
+    }
+    
+    // emulates a case where a client sends a server a bad "next" message, checks that the server responds with an error accordingly but does not close the messenger
+    func testNextBadUpdate() throws {
+        var errorResp: ErrorResponse? = nil
+        let completeExpectation = XCTestExpectation()
+        // server should receive 2 nexts, one that errors and one that does not
+        completeExpectation.expectedFulfillmentCount = 2
+        var ct = 0
+
+        let client = Client<TokenInitPayload>(messenger: clientMessenger)
+        client.onConnectionAck { _, client in
+            // send error triggering message
+            client.sendNext(payload: .init(), id: UUID().uuidString)
+        }
+        
+        client.onError { error, _ in
+            errorResp = error
+            // send another and make sure we can get it back correctly
+            client.sendNext(payload: .init(), id: UUID().uuidString)
+        }
+        
+        server.onNext { _, _ in
+            completeExpectation.fulfill()
+
+            // error on first message
+            if ct == 0 {
+                ct += 1
+                return self.eventLoop.makeFailedFuture(TestError.couldBeAnything)
+            }
+            // send ok on remaining
+            return self.eventLoop.makeSucceededVoidFuture()
+        }
+
+        client.sendConnectionInit(
+            payload: TokenInitPayload(
+                authToken: ""
+            )
+        )
+
+        wait(for: [completeExpectation], timeout: 2)
+        XCTAssertNotNil(errorResp)
     }
 
     enum TestError: Error {

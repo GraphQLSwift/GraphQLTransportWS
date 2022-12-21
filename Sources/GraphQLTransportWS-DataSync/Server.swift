@@ -19,7 +19,7 @@ public class Server<InitPayload: Equatable & Codable> {
     var onOperationComplete: (String) -> Void = { _ in }
     var onOperationError: (String) -> Void = { _ in }
     var onMessage: (String) -> Void = { _ in }
-    var onNext: (NextResponse, Server) -> Void = { _, _ in }
+    var onNext: (NextResponse, Server) -> EventLoopFuture<Void>
 
     var initialized = false
 
@@ -44,6 +44,7 @@ public class Server<InitPayload: Equatable & Codable> {
         self.onExecute = onExecute
         self.onSubscribe = onSubscribe
         self.auth = { _ in eventLoop.makeSucceededVoidFuture() }
+        self.onNext = { _, _ in eventLoop.makeSucceededVoidFuture() }
 
         messenger.onReceive { message in
             self.onMessage(message)
@@ -97,7 +98,14 @@ public class Server<InitPayload: Equatable & Codable> {
                         self.error(.invalidRequestFormat(messageType: .next))
                         return
                     }
-                    self.onNext(nextMessage, self)
+                    self.onNext(nextMessage, self).whenComplete { result in
+                        switch result {
+                            case .success():
+                                return
+                            case let .failure(error):
+                                self.sendError(error, id: nextMessage.id)
+                        }
+                    }
             }
         }
     }
@@ -139,7 +147,7 @@ public class Server<InitPayload: Equatable & Codable> {
     /// can now define custom handling for frames containing `GraphQLResult`
     /// objects sent by the client.
     /// - Parameter callback: The callback to assign
-    public func onNext(_ callback: @escaping (NextResponse, Server) -> Void) {
+    public func onNext(_ callback: @escaping (NextResponse, Server) -> EventLoopFuture<Void>) {
         self.onNext = callback
     }
 
