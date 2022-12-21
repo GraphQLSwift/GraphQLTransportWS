@@ -12,11 +12,11 @@
       },
       {
         "package": "GraphQL",
-        "repositoryURL": "https://github.com/GraphQLSwift/GraphQL.git",
+        "repositoryURL": "https://github.com/GNMoseke/GraphQL.git",
         "state": {
           "branch": null,
-          "revision": "283cc4de56b994a00b2724328221b7a1bc846ddc",
-          "version": "2.2.1"
+          "revision": "3b82acfaed1a551a55165e9c6e038972d4d3606d",
+          "version": null
         }
       },
       {
@@ -42,8 +42,8 @@
         "repositoryURL": "https://github.com/apple/swift-collections",
         "state": {
           "branch": null,
-          "revision": "48254824bb4248676bf7ce56014ff57b142b77eb",
-          "version": "1.0.2"
+          "revision": "937e904258d22af6e447a0b72c0bc67583ef64a2",
+          "version": "1.0.4"
         }
       },
       {
