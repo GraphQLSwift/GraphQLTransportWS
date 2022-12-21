@@ -12,8 +12,7 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "Graphiti", url: "https://github.com/GraphQLSwift/Graphiti.git", from: "1.0.0"),
-        // TODO: can mainline after this: https://github.com/GraphQLSwift/GraphQL/pull/119
-        .package(name: "GraphQL", url: "https://github.com/GNMoseke/GraphQL.git", revision: "3b82acfaed1a551a55165e9c6e038972d4d3606d"),
+        .package(name: "GraphQL", url: "https://github.com/GraphQLSwift/GraphQL.git", from: "2.4.5"),
         .package(name: "GraphQLRxSwift", url: "https://github.com/GraphQLSwift/GraphQLRxSwift.git", from: "0.0.4"),
         .package(name: "RxSwift", url: "https://github.com/ReactiveX/RxSwift.git", from: "6.1.0"),
         .package(name: "swift-nio", url: "https://github.com/apple/swift-nio.git", from: "2.33.0"),

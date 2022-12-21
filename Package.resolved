@@ -12,11 +12,11 @@
       },
       {
         "package": "GraphQL",
-        "repositoryURL": "https://github.com/GNMoseke/GraphQL.git",
+        "repositoryURL": "https://github.com/GraphQLSwift/GraphQL.git",
         "state": {
           "branch": null,
-          "revision": "3b82acfaed1a551a55165e9c6e038972d4d3606d",
-          "version": null
+          "revision": "a3011344bef0374fb72f4ad57a85460564eb8f0e",
+          "version": "2.4.5"
         }
       },
       {
