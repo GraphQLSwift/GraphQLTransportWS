@@ -141,7 +141,9 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Add an observable object for this client that will fire off `Next` messages to the server as updates happen.
     /// - Parameter observable: `Observable<EventLoopFuture<GraphQLRequest>>` to subscribe to for changes.
-    public func addObservableSubscription(observable: Observable<EventLoopFuture<GraphQLResult>>) {
+    public func addObservableSubscription(
+        observable: Observable<EventLoopFuture<GraphQLResult>>
+    ) {
         observable.subscribe(
             onNext: { [weak self] resultFuture in
                 guard let self = self else { return }

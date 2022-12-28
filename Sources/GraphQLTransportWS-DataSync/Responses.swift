@@ -19,23 +19,14 @@ public struct ConnectionAckResponse: Equatable, JsonEncodable {
 
 /// A websocket `next` response from the server to the client
 public struct NextResponse: Equatable, JsonEncodable {
-    public enum UpdateType: String, JsonEncodable {
-        case flatGraphDiff
-        case recordUpdate
-    }
-
     let type: ResponseMessageType
     public let payload: GraphQLResult?
     public let id: String
 
-    /// An addition for datasync, optionally marking this next message as a set of FlatGraphDiffs or a record update. This allows for easier decoding. Optional to allow for the base protocol to still work as expected for Next messages.
-    public let updateType: UpdateType?
-
-    init(_ payload: GraphQLResult? = nil, id: String, updateType: UpdateType? = .flatGraphDiff) {
+    init(_ payload: GraphQLResult? = nil, id: String) {
         self.type = .next
         self.payload = payload
         self.id = id
-        self.updateType = updateType
     }
 }
 
