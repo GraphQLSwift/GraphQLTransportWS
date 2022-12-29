@@ -1,3 +1,5 @@
+// Copyright (c) 2022 PassiveLogic, Inc.
+
 import Foundation
 import GraphQL
 import GraphQLRxSwift

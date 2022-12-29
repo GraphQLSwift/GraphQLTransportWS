@@ -1,3 +1,5 @@
+// Copyright (c) 2022 PassiveLogic, Inc.
+
 import Foundation
 import GraphQL
 import NIO
@@ -374,10 +376,10 @@ final class GraphqlTransportWSTests: XCTestCase {
         )
         XCTAssertTrue(try XCTUnwrap(messages.last).contains(ErrorCode.notInitialized.rawValue.description))
     }
-    
+
     // emulates a case where a client sends a server a bad "next" message, checks that the server responds with an error accordingly but does not close the messenger
     func testNextBadUpdate() throws {
-        var errorResp: ErrorResponse? = nil
+        var errorResp: ErrorResponse?
         let completeExpectation = XCTestExpectation()
         // server should receive 2 nexts, one that errors and one that does not
         completeExpectation.expectedFulfillmentCount = 2
@@ -388,13 +390,13 @@ final class GraphqlTransportWSTests: XCTestCase {
             // send error triggering message
             client.sendNext(payload: .init(), id: UUID().uuidString)
         }
-        
+
         client.onError { error, _ in
             errorResp = error
             // send another and make sure we can get it back correctly
             client.sendNext(payload: .init(), id: UUID().uuidString)
         }
-        
+
         server.onNext { _, _ in
             completeExpectation.fulfill()
 

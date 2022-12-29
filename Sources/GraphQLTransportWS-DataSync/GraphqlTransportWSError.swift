@@ -1,3 +1,5 @@
+// Copyright (c) 2022 PassiveLogic, Inc.
+
 import GraphQL
 
 struct GraphQLTransportWSError: Error {

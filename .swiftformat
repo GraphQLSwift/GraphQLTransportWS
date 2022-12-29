@@ -1,5 +1,6 @@
 # Default formatting rules for all PassiveLogic swift projects
 
+--header "Copyright (c) 2022 PassiveLogic, Inc."
 --allman false
 --binarygrouping none
 --decimalgrouping none
