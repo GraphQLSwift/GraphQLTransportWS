@@ -1,6 +1,8 @@
+// Copyright (c) 2022 PassiveLogic, Inc.
+
 import Foundation
 
-@testable import GraphQLTransportWS
+@testable import GraphQLTransportWS_DataSync
 
 /// Messenger for simple testing that doesn't require starting up a websocket server.
 ///

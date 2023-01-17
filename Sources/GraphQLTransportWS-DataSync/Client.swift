@@ -1,3 +1,5 @@
+// Copyright (c) 2022 PassiveLogic, Inc.
+
 import Foundation
 import GraphQL
 import GraphQLRxSwift
@@ -36,10 +38,7 @@ public class Client<InitPayload: Equatable & Codable> {
                 return
             }
 
-            guard let json = Data(message.utf8) else {
-                self.error(.invalidEncoding())
-                return
-            }
+            let json = Data(message.utf8)
 
             let response: Response
             do {
@@ -144,7 +143,9 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Add an observable object for this client that will fire off `Next` messages to the server as updates happen.
     /// - Parameter observable: `Observable<EventLoopFuture<GraphQLRequest>>` to subscribe to for changes.
-    public func addObservableSubscription(observable: Observable<EventLoopFuture<GraphQLResult>>) {
+    public func addObservableSubscription(
+        observable: Observable<EventLoopFuture<GraphQLResult>>
+    ) {
         observable.subscribe(
             onNext: { [weak self] resultFuture in
                 guard let self = self else { return }
@@ -162,7 +163,7 @@ public class Client<InitPayload: Equatable & Codable> {
     /// - Parameters:
     ///   - payload: `GraphQLRequest` object for the server to handle
     ///   - id: id of the message
-    private func sendNext(payload: GraphQLResult, id: String) {
+    public func sendNext(payload: GraphQLResult, id: String) {
         guard let messenger = messenger else { return }
         messenger.send(
             NextResponse(
