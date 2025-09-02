@@ -27,5 +27,6 @@ let package = Package(
             name: "GraphQLTransportWSTests",
             dependencies: ["GraphQLTransportWS"]
         ),
-    ]
+    ],
+    swiftLanguageVersions: [.v5, .version("6")]
 )

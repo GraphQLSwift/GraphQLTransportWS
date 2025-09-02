@@ -88,7 +88,7 @@ struct GraphQLTransportWSError: Error {
 }
 
 /// Error codes for miscellaneous issues
-public enum ErrorCode: Int, CustomStringConvertible {
+public enum ErrorCode: Int, CustomStringConvertible, Sendable {
     // Miscellaneous
     case miscellaneous = 4400
 
