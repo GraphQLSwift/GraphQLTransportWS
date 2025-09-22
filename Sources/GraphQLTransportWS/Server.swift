@@ -10,7 +10,6 @@ public class Server<
 >: @unchecked Sendable where
     SubscriptionSequenceType.Element == GraphQLResult
 {
-
     // We keep this weak because we strongly inject this object into the messenger callback
     weak var messenger: Messenger?
 
@@ -89,11 +88,15 @@ public class Server<
                     try await self.error(.invalidRequestFormat(messageType: .complete))
                     return
                 }
-                try await self.onOperationComplete(completeRequest.id)
+                try await self.onOperationComplete(completeRequest)
             case .unknown:
                 try await self.error(.invalidType())
             }
         }
+    }
+
+    deinit {
+        subscriptionTasks.values.forEach { $0.cancel() }
     }
 
     /// Define a custom callback run during `connection_init` resolution that allows authorization using the `payload`.
@@ -171,18 +174,15 @@ public class Server<
                     let stream = try await onSubscribe(graphQLRequest)
                     for try await event in stream {
                         try Task.checkCancellation()
-                        do {
-                            try await self.sendNext(event, id: id)
-                        } catch {
-                            try await self.sendError(error, id: id)
-                            throw error
-                        }
+                        try await self.sendNext(event, id: id)
                     }
                 } catch {
                     try await sendError(error, id: id)
+                    subscriptionTasks.removeValue(forKey: id)
                     throw error
                 }
                 try await self.sendComplete(id: id)
+                subscriptionTasks.removeValue(forKey: id)
             }
         } else {
             do {
@@ -194,6 +194,20 @@ public class Server<
             }
             try await messenger?.close()
         }
+    }
+
+    private func onOperationComplete(_ completeRequest: CompleteRequest) async throws {
+        guard initialized else {
+            try await error(.notInitialized())
+            return
+        }
+
+        let id = completeRequest.id
+        if let task = subscriptionTasks[id] {
+            task.cancel()
+            subscriptionTasks.removeValue(forKey: id)
+        }
+        try await onOperationComplete(id)
     }
 
     /// Send a `connection_ack` response through the messenger
