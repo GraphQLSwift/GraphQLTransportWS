@@ -42,8 +42,8 @@ enum RequestMessageType: String, Codable {
     case subscribe
     case complete
     case unknown
-    
-    public init(from decoder: Decoder) throws {
+
+    init(from decoder: Decoder) throws {
         guard let value = try? decoder.singleValueContainer().decode(String.self) else {
             self = .unknown
             return

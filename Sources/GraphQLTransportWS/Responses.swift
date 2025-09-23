@@ -10,9 +10,9 @@ struct Response: Equatable, JsonEncodable {
 public struct ConnectionAckResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
     public let payload: [String: Map]?
-    
+
     init(_ payload: [String: Map]? = nil) {
-        self.type = .connectionAck
+        type = .connectionAck
         self.payload = payload
     }
 }
@@ -22,9 +22,9 @@ public struct NextResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
     public let payload: GraphQLResult?
     public let id: String
-    
+
     init(_ payload: GraphQLResult? = nil, id: String) {
-        self.type = .next
+        type = .next
         self.payload = payload
         self.id = id
     }
@@ -34,9 +34,9 @@ public struct NextResponse: Equatable, JsonEncodable {
 public struct CompleteResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
     public let id: String
-    
+
     init(id: String) {
-        self.type = .complete
+        type = .complete
         self.id = id
     }
 }
@@ -46,18 +46,18 @@ public struct ErrorResponse: Equatable, JsonEncodable {
     let type: ResponseMessageType
     public let payload: [GraphQLError]
     public let id: String
-    
+
     init(_ errors: [Error], id: String) {
         let graphQLErrors = errors.map { error -> GraphQLError in
             switch error {
-                case let graphQLError as GraphQLError:
-                    return graphQLError
-                default:
-                    return GraphQLError(error)
+            case let graphQLError as GraphQLError:
+                return graphQLError
+            default:
+                return GraphQLError(error)
             }
         }
-        self.type = .error
-        self.payload = graphQLErrors
+        type = .error
+        payload = graphQLErrors
         self.id = id
     }
 }
@@ -69,7 +69,7 @@ enum ResponseMessageType: String, Codable {
     case error
     case complete
     case unknown
-    
+
     init(from decoder: Decoder) throws {
         guard let value = try? decoder.singleValueContainer().decode(String.self) else {
             self = .unknown
@@ -84,9 +84,9 @@ enum ResponseMessageType: String, Codable {
 struct EncodingErrorResponse: Equatable, Codable, JsonEncodable {
     let type: ResponseMessageType
     let payload: [String: String]
-    
+
     init(_ errorMessage: String) {
-        self.type = .error
-        self.payload = ["error": errorMessage]
+        type = .error
+        payload = ["error": errorMessage]
     }
 }
