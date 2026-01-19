@@ -1,33 +1,34 @@
 {
-  "originHash" : "30951f6d77c03868bb74b0838ce93637391a168c6668a029c8a8a1dd9fb01aa5",
-  "pins" : [
-    {
-      "identity" : "graphiti",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/GraphQLSwift/Graphiti.git",
-      "state" : {
-        "revision" : "a23a3d232df202fc158ad2d698926325b470523c",
-        "version" : "3.0.0"
+  "object": {
+    "pins": [
+      {
+        "package": "Graphiti",
+        "repositoryURL": "https://github.com/GraphQLSwift/Graphiti.git",
+        "state": {
+          "branch": null,
+          "revision": "a23a3d232df202fc158ad2d698926325b470523c",
+          "version": "3.0.0"
+        }
+      },
+      {
+        "package": "GraphQL",
+        "repositoryURL": "https://github.com/GraphQLSwift/GraphQL.git",
+        "state": {
+          "branch": null,
+          "revision": "397c0f43a1eb6a401858f896263288375efcf0bd",
+          "version": "4.1.0"
+        }
+      },
+      {
+        "package": "swift-collections",
+        "repositoryURL": "https://github.com/apple/swift-collections",
+        "state": {
+          "branch": null,
+          "revision": "7b847a3b7008b2dc2f47ca3110d8c782fb2e5c7e",
+          "version": "1.3.0"
+        }
       }
-    },
-    {
-      "identity" : "graphql",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/GraphQLSwift/GraphQL.git",
-      "state" : {
-        "revision" : "0fe18bc0bbbc9ab8929c285f419adea7c8fc7da2",
-        "version" : "4.0.1"
-      }
-    },
-    {
-      "identity" : "swift-collections",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-collections",
-      "state" : {
-        "revision" : "8c0c0a8b49e080e54e5e328cc552821ff07cd341",
-        "version" : "1.2.1"
-      }
-    }
-  ],
-  "version" : 3
+    ]
+  },
+  "version": 1
 }

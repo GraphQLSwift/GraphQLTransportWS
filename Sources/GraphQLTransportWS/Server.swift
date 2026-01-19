@@ -89,7 +89,7 @@ public class Server<
                     return
                 }
                 try await self.onOperationComplete(completeRequest)
-            case .unknown:
+            default:
                 try await self.error(.invalidType())
             }
         }
@@ -214,7 +214,7 @@ public class Server<
     private func sendConnectionAck(_ payload: [String: Map]? = nil) async throws {
         guard let messenger = messenger else { return }
         try await messenger.send(
-            ConnectionAckResponse(payload).toJSON(encoder)
+            ConnectionAckResponse(payload: payload).toJSON(encoder)
         )
     }
 
@@ -223,7 +223,7 @@ public class Server<
         guard let messenger = messenger else { return }
         try await messenger.send(
             NextResponse(
-                payload,
+                payload: payload,
                 id: id
             ).toJSON(encoder)
         )
