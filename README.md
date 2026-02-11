@@ -1,5 +1,8 @@
 # GraphQLTransportWS
 
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FGraphQLSwift%2FGraphQLTransportWS%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/GraphQLSwift/GraphQLTransportWS)
+[![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FGraphQLSwift%2FGraphQLTransportWS%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/GraphQLSwift/GraphQLTransportWS)
+
 This implements the [graphql-transport-ws WebSocket subprotocol](https://github.com/enisdenjo/graphql-ws/blob/master/PROTOCOL.md).
 It is mainly intended for server support, but there is a basic client implementation included.
 
@@ -14,7 +17,7 @@ Features:
 To use this package, include it in your `Package.swift` dependencies:
 
 ```swift
-.package(url: "git@gitlab.com:PassiveLogic/platform/GraphQLTransportWS.git", from: "<version>")
+.package(url: "https://github.com/GraphQLSwift/GraphQLTransportWS", from: "<version>")
 ```
 
 Then create a class to implement the `Messenger` protocol. Here's an example using
@@ -25,12 +28,8 @@ import WebSocketKit
 import GraphQLTransportWS
 
 /// Messenger wrapper for WebSockets
-class WebSocketMessenger: Messenger {
-    let websocket: WebSocket?
-
-    init(websocket: WebSocket) {
-        self.websocket = websocket
-    }
+struct WebSocketMessenger: Messenger {
+    let websocket: WebSocket
 
     func send<S>(_ message: S) where S: Collection, S.Element == Character async throws {
         try await websocket.send(message)
