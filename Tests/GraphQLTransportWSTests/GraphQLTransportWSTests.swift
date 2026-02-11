@@ -14,16 +14,13 @@ class GraphqlTransportWSTests: XCTestCase {
     let api = TestAPI()
 
     override func setUp() {
-        // Point the client and server at each other
         clientMessenger = TestMessenger()
         serverMessenger = TestMessenger()
-        clientMessenger.other = serverMessenger
-        serverMessenger.other = clientMessenger
     }
 
     /// Tests that trying to run methods before `connection_init` is not allowed
     func testInitialize() async throws {
-        _ = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
+        let server = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
             messenger: serverMessenger,
             onInit: { _ in },
             onExecute: { graphQLRequest, _ in
@@ -41,8 +38,16 @@ class GraphqlTransportWSTests: XCTestCase {
                 return subscription
             }
         )
-        
         let client = Client<TokenInitPayload>(messenger: clientMessenger)
+        let serverStream = serverMessenger.stream
+        let clientStream = clientMessenger.stream
+        Task {
+            try await server.listen(to: clientStream)
+        }
+        Task {
+            try await client.listen(to: serverStream)
+        }
+        
         let messageStream = AsyncThrowingStream<String, any Error> { continuation in
             client.onMessage { message, _ in
                 continuation.yield(message)
@@ -76,7 +81,7 @@ class GraphqlTransportWSTests: XCTestCase {
 
     /// Tests that throwing in the authorization callback forces an unauthorized error
     func testAuthWithThrow() async throws {
-        _ = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
+        let server = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
             messenger: serverMessenger,
             onInit: { _ in
                 throw TestError.couldBeAnything
@@ -96,8 +101,16 @@ class GraphqlTransportWSTests: XCTestCase {
                 return subscription
             }
         )
-
         let client = Client<TokenInitPayload>(messenger: clientMessenger)
+        let clientStream = clientMessenger.stream
+        let serverStream = serverMessenger.stream
+        Task {
+            try await server.listen(to: clientStream)
+        }
+        Task {
+            try await client.listen(to: serverStream)
+        }
+        
         let messageStream = AsyncThrowingStream<String, any Error> { continuation in
             client.onMessage { message, _ in
                 continuation.yield(message)
@@ -126,7 +139,7 @@ class GraphqlTransportWSTests: XCTestCase {
 
     /// Tests a single-op conversation
     func testSingleOp() async throws {
-        _ = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
+        let server = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
             messenger: serverMessenger,
             onInit: { _ in },
             onExecute: { graphQLRequest, _ in
@@ -144,10 +157,18 @@ class GraphqlTransportWSTests: XCTestCase {
                 return subscription
             }
         )
+        let client = Client<TokenInitPayload>(messenger: clientMessenger)
+        let clientStream = clientMessenger.stream
+        let serverStream = serverMessenger.stream
+        Task {
+            try await server.listen(to: clientStream)
+        }
+        Task {
+            try await client.listen(to: serverStream)
+        }
         
         let id = UUID().description
 
-        let client = Client<TokenInitPayload>(messenger: clientMessenger)
         let messageStream = AsyncThrowingStream<String, any Error> { continuation in
             client.onConnectionAck { _, client in
                 try await client.sendStart(
@@ -190,7 +211,7 @@ class GraphqlTransportWSTests: XCTestCase {
 
     /// Tests a streaming conversation
     func testStreaming() async throws {
-        _ = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
+        let server = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
             messenger: serverMessenger,
             onInit: { _ in },
             onExecute: { graphQLRequest, _ in
@@ -208,13 +229,21 @@ class GraphqlTransportWSTests: XCTestCase {
                 return subscription
             }
         )
+        let client = Client<TokenInitPayload>(messenger: clientMessenger)
+        let clientStream = clientMessenger.stream
+        let serverStream = serverMessenger.stream
+        Task {
+            try await server.listen(to: clientStream)
+        }
+        Task {
+            try await client.listen(to: serverStream)
+        }
         
         let id = UUID().description
 
         var dataIndex = 1
         let dataIndexMax = 3
 
-        let client = Client<TokenInitPayload>(messenger: clientMessenger)
         let messageStream = AsyncThrowingStream<String, any Error> { continuation in
             client.onConnectionAck { _, client in
                 try await client.sendStart(

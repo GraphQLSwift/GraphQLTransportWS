@@ -2,9 +2,8 @@ import Foundation
 import GraphQL
 
 /// Client is an open-ended implementation of the client side of the protocol. It parses and adds callbacks for each type of server respose.
-public class Client<InitPayload: Equatable & Codable> {
-    // We keep this weak because we strongly inject this object into the messenger callback
-    weak var messenger: Messenger?
+public class Client<InitPayload: Equatable & Codable>: @unchecked Sendable {
+    let messenger: Messenger
 
     var onConnectionAck: (ConnectionAckResponse, Client) async throws -> Void = { _, _ in }
     var onNext: (NextResponse, Client) async throws -> Void = { _, _ in }
@@ -23,7 +22,12 @@ public class Client<InitPayload: Equatable & Codable> {
         messenger: Messenger
     ) {
         self.messenger = messenger
-        messenger.onReceive { message in
+    }
+
+    /// Listen and react to the provided async sequence of server messages. This function will block until the stream is completed.
+    /// - Parameter incoming: The server message sequence that the client should react to.
+    public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws -> Void where A.Element == String {
+        for try await message in incoming {
             try await self.onMessage(message, self)
 
             // Detect and ignore error responses.
@@ -108,7 +112,6 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Send a `connection_init` request through the messenger
     public func sendConnectionInit(payload: InitPayload) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             ConnectionInitRequest(
                 payload: payload
@@ -118,7 +121,6 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Send a `subscribe` request through the messenger
     public func sendStart(payload: GraphQLRequest, id: String) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             SubscribeRequest(
                 payload: payload,
@@ -129,7 +131,6 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Send a `complete` request through the messenger
     public func sendStop(id: String) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             CompleteRequest(
                 id: id
@@ -139,7 +140,6 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Send an error through the messenger and close the connection
     private func error(_ error: GraphQLTransportWSError) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.error(error.message, code: error.code.rawValue)
     }
 }
