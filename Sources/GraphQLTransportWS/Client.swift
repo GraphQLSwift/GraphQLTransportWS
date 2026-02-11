@@ -2,14 +2,14 @@ import Foundation
 import GraphQL
 
 /// Client is an open-ended implementation of the client side of the protocol. It parses and adds callbacks for each type of server respose.
-public class Client<InitPayload: Equatable & Codable>: @unchecked Sendable {
+public actor Client<InitPayload: Equatable & Codable> {
     let messenger: Messenger
 
-    var onConnectionAck: (ConnectionAckResponse, Client) async throws -> Void = { _, _ in }
-    var onNext: (NextResponse, Client) async throws -> Void = { _, _ in }
-    var onError: (ErrorResponse, Client) async throws -> Void = { _, _ in }
-    var onComplete: (CompleteResponse, Client) async throws -> Void = { _, _ in }
-    var onMessage: (String, Client) async throws -> Void = { _, _ in }
+    let onConnectionAck: (ConnectionAckResponse, Client) async throws -> Void
+    let onNext: (NextResponse, Client) async throws -> Void
+    let onError: (ErrorResponse, Client) async throws -> Void
+    let onComplete: (CompleteResponse, Client) async throws -> Void
+    let onMessage: (String, Client) async throws -> Void
 
     let encoder = GraphQLJSONEncoder()
     let decoder = JSONDecoder()
@@ -19,9 +19,19 @@ public class Client<InitPayload: Equatable & Codable>: @unchecked Sendable {
     /// - Parameters:
     ///   - messenger: The messenger to bind the client to.
     public init(
-        messenger: Messenger
+        messenger: Messenger,
+        onConnectionAck: @escaping (ConnectionAckResponse, Client) async throws -> Void = { _, _ in },
+        onNext: @escaping (NextResponse, Client) async throws -> Void = { _, _ in },
+        onError: @escaping (ErrorResponse, Client) async throws -> Void = { _, _ in },
+        onComplete: @escaping (CompleteResponse, Client) async throws -> Void = { _, _ in },
+        onMessage: @escaping (String, Client) async throws -> Void = { _, _ in }
     ) {
         self.messenger = messenger
+        self.onConnectionAck = onConnectionAck
+        self.onNext = onNext
+        self.onError = onError
+        self.onComplete = onComplete
+        self.onMessage = onMessage
     }
 
     /// Listen and react to the provided async sequence of server messages. This function will block until the stream is completed.
@@ -78,36 +88,6 @@ public class Client<InitPayload: Equatable & Codable>: @unchecked Sendable {
                 try await self.error(.invalidType())
             }
         }
-    }
-
-    /// Define the callback run on receipt of a `connection_ack` message
-    /// - Parameter callback: The callback to assign
-    public func onConnectionAck(_ callback: @escaping (ConnectionAckResponse, Client) async throws -> Void) {
-        onConnectionAck = callback
-    }
-
-    /// Define the callback run on receipt of a `next` message
-    /// - Parameter callback: The callback to assign
-    public func onNext(_ callback: @escaping (NextResponse, Client) async throws -> Void) {
-        onNext = callback
-    }
-
-    /// Define the callback run on receipt of an `error` message
-    /// - Parameter callback: The callback to assign
-    public func onError(_ callback: @escaping (ErrorResponse, Client) async throws -> Void) {
-        onError = callback
-    }
-
-    /// Define the callback run on receipt of a `complete` message
-    /// - Parameter callback: The callback to assign
-    public func onComplete(_ callback: @escaping (CompleteResponse, Client) async throws -> Void) {
-        onComplete = callback
-    }
-
-    /// Define the callback run on receipt of any message
-    /// - Parameter callback: The callback to assign
-    public func onMessage(_ callback: @escaping (String, Client) async throws -> Void) {
-        onMessage = callback
     }
 
     /// Send a `connection_init` request through the messenger

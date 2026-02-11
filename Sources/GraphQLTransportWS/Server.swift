@@ -4,31 +4,28 @@ import GraphQL
 /// Server implements the server-side portion of the protocol, allowing a few callbacks for customization.
 ///
 /// By default, there are no authorization checks
-public class Server<
+public actor Server<
     InitPayload: Equatable & Codable & Sendable,
     InitPayloadResult: Sendable,
     SubscriptionSequenceType: AsyncSequence & Sendable
->: @unchecked Sendable where
+> where
     SubscriptionSequenceType.Element == GraphQLResult
 {
-    // We keep this weak because we strongly inject this object into the messenger callback
     let messenger: Messenger
     
     let onInit: (InitPayload) async throws -> InitPayloadResult
     let onExecute: (GraphQLRequest, InitPayloadResult) async throws -> GraphQLResult
     let onSubscribe: (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType
-
-    var onExit: () async throws -> Void = {}
-    var onMessage: (String) async throws -> Void = { _ in }
-    var onOperationComplete: (String) async throws -> Void = { _ in }
-    var onOperationError: (String, [Error]) async throws -> Void = { _, _ in }
-
-    var initialized = false
-    var initResult: InitPayloadResult?
+    
+    let onMessage: (String) async throws -> Void
+    let onOperationComplete: (String) async throws -> Void
+    let onOperationError: (String, [Error]) async throws -> Void
 
     let decoder = JSONDecoder()
     let encoder = GraphQLJSONEncoder()
 
+    private var initialized = false
+    private var initResult: InitPayloadResult?
     private var subscriptionTasks = [String: Task<Void, any Error>]()
 
     /// Create a new server
@@ -37,16 +34,25 @@ public class Server<
     ///   - messenger: The messenger to bind the server to.
     ///   - onExecute: Callback run during `start` resolution for non-streaming queries. Typically this is `API.execute`.
     ///   - onSubscribe: Callback run during `start` resolution for streaming queries. Typically this is `API.subscribe`.
+    ///   - onMessage: Optional callback run on every message event
+    ///   - onOperationComplete: Optional callback run when an operation completes
+    ///   - onOperationError: Optional callback run when an operation errors
     public init(
         messenger: Messenger,
         onInit: @escaping (InitPayload) async throws -> InitPayloadResult,
         onExecute: @escaping (GraphQLRequest, InitPayloadResult) async throws -> GraphQLResult,
-        onSubscribe: @escaping (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType
+        onSubscribe: @escaping (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType,
+        onMessage: @escaping (String) async throws -> Void = { _ in },
+        onOperationComplete: @escaping (String) async throws -> Void = { _ in },
+        onOperationError: @escaping (String, [Error]) async throws -> Void = { _, _ in },
     ) {
         self.messenger = messenger
         self.onInit = onInit
         self.onExecute = onExecute
         self.onSubscribe = onSubscribe
+        self.onMessage = onMessage
+        self.onOperationComplete = onOperationComplete
+        self.onOperationError = onOperationError
     }
 
     /// Listen and react to the provided async sequence of client messages. This function will block until the stream is completed.
@@ -102,30 +108,6 @@ public class Server<
 
     deinit {
         subscriptionTasks.values.forEach { $0.cancel() }
-    }
-
-    /// Define the callback run when the communication is shut down, either by the client or server
-    /// - Parameter callback: The callback to assign
-    public func onExit(_ callback: @escaping () -> Void) {
-        onExit = callback
-    }
-
-    /// Define the callback run on receipt of any message
-    /// - Parameter callback: The callback to assign
-    public func onMessage(_ callback: @escaping (String) -> Void) {
-        onMessage = callback
-    }
-
-    /// Define the callback run on the completion a full operation (query/mutation, end of subscription)
-    /// - Parameter callback: The callback to assign
-    public func onOperationComplete(_ callback: @escaping (String) -> Void) {
-        onOperationComplete = callback
-    }
-
-    /// Define the callback to run on error of any full operation (failed query, interrupted subscription)
-    /// - Parameter callback: The callback to assign
-    public func onOperationError(_ callback: @escaping (String, [Error]) -> Void) {
-        onOperationError = callback
     }
 
     private func onConnectionInit(_ connectionInitRequest: ConnectionInitRequest<InitPayload>, _: Messenger) async throws {
