@@ -12,11 +12,11 @@ public actor Server<
     SubscriptionSequenceType.Element == GraphQLResult
 {
     let messenger: Messenger
-    
+
     let onInit: (InitPayload) async throws -> InitPayloadResult
     let onExecute: (GraphQLRequest, InitPayloadResult) async throws -> GraphQLResult
     let onSubscribe: (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType
-    
+
     let onMessage: (String) async throws -> Void
     let onOperationComplete: (String) async throws -> Void
     let onOperationError: (String, [Error]) async throws -> Void
@@ -44,7 +44,7 @@ public actor Server<
         onSubscribe: @escaping (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType,
         onMessage: @escaping (String) async throws -> Void = { _ in },
         onOperationComplete: @escaping (String) async throws -> Void = { _ in },
-        onOperationError: @escaping (String, [Error]) async throws -> Void = { _, _ in },
+        onOperationError: @escaping (String, [Error]) async throws -> Void = { _, _ in }
     ) {
         self.messenger = messenger
         self.onInit = onInit
@@ -59,7 +59,7 @@ public actor Server<
     /// - Parameter incoming: The client message sequence that the server should react to.
     public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws -> Void where A.Element == String {
         for try await message in incoming {
-            try await self.onMessage(message)
+            try await onMessage(message)
 
             // Detect and ignore error responses.
             if message.starts(with: "44") {
@@ -68,13 +68,13 @@ public actor Server<
             }
 
             guard let json = message.data(using: .utf8) else {
-                try await self.error(.invalidEncoding())
+                try await error(.invalidEncoding())
                 return
             }
 
             let request: Request
             do {
-                request = try self.decoder.decode(Request.self, from: json)
+                request = try decoder.decode(Request.self, from: json)
             } catch {
                 try await self.error(.noType())
                 return
@@ -83,25 +83,25 @@ public actor Server<
             // handle incoming message
             switch request.type {
             case .connectionInit:
-                guard let connectionInitRequest = try? self.decoder.decode(ConnectionInitRequest<InitPayload>.self, from: json) else {
-                    try await self.error(.invalidRequestFormat(messageType: .connectionInit))
+                guard let connectionInitRequest = try? decoder.decode(ConnectionInitRequest<InitPayload>.self, from: json) else {
+                    try await error(.invalidRequestFormat(messageType: .connectionInit))
                     return
                 }
-                try await self.onConnectionInit(connectionInitRequest, messenger)
+                try await onConnectionInit(connectionInitRequest, messenger)
             case .subscribe:
-                guard let subscribeRequest = try? self.decoder.decode(SubscribeRequest.self, from: json) else {
-                    try await self.error(.invalidRequestFormat(messageType: .subscribe))
+                guard let subscribeRequest = try? decoder.decode(SubscribeRequest.self, from: json) else {
+                    try await error(.invalidRequestFormat(messageType: .subscribe))
                     return
                 }
-                try await self.onSubscribe(subscribeRequest)
+                try await onSubscribe(subscribeRequest)
             case .complete:
-                guard let completeRequest = try? self.decoder.decode(CompleteRequest.self, from: json) else {
-                    try await self.error(.invalidRequestFormat(messageType: .complete))
+                guard let completeRequest = try? decoder.decode(CompleteRequest.self, from: json) else {
+                    try await error(.invalidRequestFormat(messageType: .complete))
                     return
                 }
-                try await self.onOperationComplete(completeRequest)
+                try await onOperationComplete(completeRequest)
             default:
-                try await self.error(.invalidType())
+                try await error(.invalidType())
             }
         }
     }

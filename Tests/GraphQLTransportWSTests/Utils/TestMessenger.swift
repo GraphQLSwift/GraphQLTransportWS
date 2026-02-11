@@ -1,6 +1,5 @@
 
 import Foundation
-
 @testable import GraphQLTransportWS
 
 /// Messenger for simple testing that doesn't require starting up a websocket server.
@@ -15,7 +14,7 @@ actor TestMessenger: Messenger {
         self.continuation = continuation
     }
 
-    func send<S: Sendable>(_ message: S) async throws where S: Collection, S.Element == Character {
+    func send<S: Sendable & Collection>(_ message: S) async throws where S.Element == Character {
         continuation.yield(String(message))
     }
 

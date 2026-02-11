@@ -38,7 +38,7 @@ public actor Client<InitPayload: Equatable & Codable> {
     /// - Parameter incoming: The server message sequence that the client should react to.
     public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws -> Void where A.Element == String {
         for try await message in incoming {
-            try await self.onMessage(message, self)
+            try await onMessage(message, self)
 
             // Detect and ignore error responses.
             if message.starts(with: "44") {
@@ -47,13 +47,13 @@ public actor Client<InitPayload: Equatable & Codable> {
             }
 
             guard let json = message.data(using: .utf8) else {
-                try await self.error(.invalidEncoding())
+                try await error(.invalidEncoding())
                 return
             }
 
             let response: Response
             do {
-                response = try self.decoder.decode(Response.self, from: json)
+                response = try decoder.decode(Response.self, from: json)
             } catch {
                 try await self.error(.noType())
                 return
@@ -61,31 +61,31 @@ public actor Client<InitPayload: Equatable & Codable> {
 
             switch response.type {
             case .connectionAck:
-                guard let connectionAckResponse = try? self.decoder.decode(ConnectionAckResponse.self, from: json) else {
-                    try await self.error(.invalidResponseFormat(messageType: .connectionAck))
+                guard let connectionAckResponse = try? decoder.decode(ConnectionAckResponse.self, from: json) else {
+                    try await error(.invalidResponseFormat(messageType: .connectionAck))
                     return
                 }
-                try await self.onConnectionAck(connectionAckResponse, self)
+                try await onConnectionAck(connectionAckResponse, self)
             case .next:
-                guard let nextResponse = try? self.decoder.decode(NextResponse.self, from: json) else {
-                    try await self.error(.invalidResponseFormat(messageType: .next))
+                guard let nextResponse = try? decoder.decode(NextResponse.self, from: json) else {
+                    try await error(.invalidResponseFormat(messageType: .next))
                     return
                 }
-                try await self.onNext(nextResponse, self)
+                try await onNext(nextResponse, self)
             case .error:
-                guard let errorResponse = try? self.decoder.decode(ErrorResponse.self, from: json) else {
-                    try await self.error(.invalidResponseFormat(messageType: .error))
+                guard let errorResponse = try? decoder.decode(ErrorResponse.self, from: json) else {
+                    try await error(.invalidResponseFormat(messageType: .error))
                     return
                 }
-                try await self.onError(errorResponse, self)
+                try await onError(errorResponse, self)
             case .complete:
-                guard let completeResponse = try? self.decoder.decode(CompleteResponse.self, from: json) else {
-                    try await self.error(.invalidResponseFormat(messageType: .complete))
+                guard let completeResponse = try? decoder.decode(CompleteResponse.self, from: json) else {
+                    try await error(.invalidResponseFormat(messageType: .complete))
                     return
                 }
-                try await self.onComplete(completeResponse, self)
+                try await onComplete(completeResponse, self)
             default:
-                try await self.error(.invalidType())
+                try await error(.invalidType())
             }
         }
     }

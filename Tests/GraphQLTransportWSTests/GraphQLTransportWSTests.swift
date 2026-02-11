@@ -1,9 +1,7 @@
 import Foundation
-
 import GraphQL
-import Testing
-
 import GraphQLTransportWS
+import Testing
 
 @Suite
 struct GraphqlTransportWSTests {
@@ -24,11 +22,10 @@ struct GraphqlTransportWSTests {
                 )
             },
             onSubscribe: { graphQLRequest, _ in
-                let subscription = try await api.subscribe(
+                try await api.subscribe(
                     request: graphQLRequest.query,
                     context: context
                 ).get()
-                return subscription
             }
         )
         let (messageStream, messageContinuation) = AsyncThrowingStream<String, any Error>.makeStream()
@@ -51,7 +48,6 @@ struct GraphqlTransportWSTests {
         Task {
             try await client.listen(to: serverStream)
         }
-        
 
         try await client.sendStart(
             payload: GraphQLRequest(
@@ -69,7 +65,7 @@ struct GraphqlTransportWSTests {
         }
         #expect(
             messages ==
-            ["\(ErrorCode.notInitialized): Connection not initialized"]
+                ["\(ErrorCode.notInitialized): Connection not initialized"]
         )
     }
 
@@ -89,11 +85,10 @@ struct GraphqlTransportWSTests {
                 )
             },
             onSubscribe: { graphQLRequest, _ in
-                let subscription = try await api.subscribe(
+                try await api.subscribe(
                     request: graphQLRequest.query,
                     context: context
                 ).get()
-                return subscription
             }
         )
         let (messageStream, messageContinuation) = AsyncThrowingStream<String, any Error>.makeStream()
@@ -128,7 +123,7 @@ struct GraphqlTransportWSTests {
         }
         #expect(
             messages ==
-            ["\(ErrorCode.unauthorized): Unauthorized"]
+                ["\(ErrorCode.unauthorized): Unauthorized"]
         )
     }
 
@@ -137,7 +132,7 @@ struct GraphqlTransportWSTests {
         let api = TestAPI()
         let context = TestContext()
         let id = UUID().description
-        
+
         let server = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
             messenger: serverMessenger,
             onInit: { _ in },
@@ -148,11 +143,10 @@ struct GraphqlTransportWSTests {
                 )
             },
             onSubscribe: { graphQLRequest, _ in
-                let subscription = try await api.subscribe(
+                try await api.subscribe(
                     request: graphQLRequest.query,
                     context: context
                 ).get()
-                return subscription
             }
         )
         let (messageStream, messageContinuation) = AsyncThrowingStream<String, any Error>.makeStream()
@@ -200,7 +194,7 @@ struct GraphqlTransportWSTests {
         }
         #expect(
             messages.count ==
-            3, // 1 connection_ack, 1 next, 1 complete
+                3 // 1 connection_ack, 1 next, 1 complete
         )
     }
 
@@ -211,7 +205,7 @@ struct GraphqlTransportWSTests {
         let id = UUID().description
         var dataIndex = 1
         let dataIndexMax = 3
-        
+
         let (subscribeReadyStream, subscribeReadyContinuation) = AsyncStream<Void>.makeStream()
         let server = Server<TokenInitPayload, Void, AsyncThrowingStream<GraphQLResult, Error>>(
             messenger: serverMessenger,
@@ -288,7 +282,7 @@ struct GraphqlTransportWSTests {
             result.append(message)
         }
         #expect(
-            messages.count == 5, // 1 connection_ack, 3 next, 1 complete
+            messages.count == 5 // 1 connection_ack, 3 next, 1 complete
         )
     }
 
