@@ -16,8 +16,6 @@ public actor Server<
     let onInit: (InitPayload) async throws -> InitPayloadResult
     let onExecute: (GraphQLRequest, InitPayloadResult) async throws -> GraphQLResult
     let onSubscribe: (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType
-
-    let onMessage: (String) async throws -> Void
     let onOperationComplete: (String) async throws -> Void
     let onOperationError: (String, [Error]) async throws -> Void
 
@@ -42,7 +40,6 @@ public actor Server<
         onInit: @escaping (InitPayload) async throws -> InitPayloadResult,
         onExecute: @escaping (GraphQLRequest, InitPayloadResult) async throws -> GraphQLResult,
         onSubscribe: @escaping (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType,
-        onMessage: @escaping (String) async throws -> Void = { _ in },
         onOperationComplete: @escaping (String) async throws -> Void = { _ in },
         onOperationError: @escaping (String, [Error]) async throws -> Void = { _, _ in }
     ) {
@@ -50,7 +47,6 @@ public actor Server<
         self.onInit = onInit
         self.onExecute = onExecute
         self.onSubscribe = onSubscribe
-        self.onMessage = onMessage
         self.onOperationComplete = onOperationComplete
         self.onOperationError = onOperationError
     }
@@ -59,8 +55,6 @@ public actor Server<
     /// - Parameter incoming: The client message sequence that the server should react to.
     public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws -> Void where A.Element == String {
         for try await message in incoming {
-            try await onMessage(message)
-
             // Detect and ignore error responses.
             if message.starts(with: "44") {
                 // TODO: Determine what to do with returned error messages
