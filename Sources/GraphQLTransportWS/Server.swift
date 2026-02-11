@@ -166,7 +166,6 @@ public actor Server<
             } catch {
                 try await sendError(error, id: id)
             }
-            try await messenger.close()
         }
     }
 
