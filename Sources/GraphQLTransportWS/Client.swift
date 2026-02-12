@@ -2,15 +2,13 @@ import Foundation
 import GraphQL
 
 /// Client is an open-ended implementation of the client side of the protocol. It parses and adds callbacks for each type of server respose.
-public class Client<InitPayload: Equatable & Codable> {
-    // We keep this weak because we strongly inject this object into the messenger callback
-    weak var messenger: Messenger?
+public actor Client<InitPayload: Equatable & Codable> {
+    let messenger: Messenger
 
-    var onConnectionAck: (ConnectionAckResponse, Client) async throws -> Void = { _, _ in }
-    var onNext: (NextResponse, Client) async throws -> Void = { _, _ in }
-    var onError: (ErrorResponse, Client) async throws -> Void = { _, _ in }
-    var onComplete: (CompleteResponse, Client) async throws -> Void = { _, _ in }
-    var onMessage: (String, Client) async throws -> Void = { _, _ in }
+    let onConnectionAck: (ConnectionAckResponse, Client) async throws -> Void
+    let onNext: (NextResponse, Client) async throws -> Void
+    let onError: (ErrorResponse, Client) async throws -> Void
+    let onComplete: (CompleteResponse, Client) async throws -> Void
 
     let encoder = GraphQLJSONEncoder()
     let decoder = JSONDecoder()
@@ -19,13 +17,28 @@ public class Client<InitPayload: Equatable & Codable> {
     ///
     /// - Parameters:
     ///   - messenger: The messenger to bind the client to.
+    ///   - onConnectionAck: The callback run on receipt of a `connection_ack` message
+    ///   - onNext: The callback run on receipt of a `next` message
+    ///   - onError: The callback run on receipt of an `error` message
+    ///   - onComplete: The callback run on receipt of a `complete` message
     public init(
-        messenger: Messenger
+        messenger: Messenger,
+        onConnectionAck: @escaping (ConnectionAckResponse, Client) async throws -> Void = { _, _ in },
+        onNext: @escaping (NextResponse, Client) async throws -> Void = { _, _ in },
+        onError: @escaping (ErrorResponse, Client) async throws -> Void = { _, _ in },
+        onComplete: @escaping (CompleteResponse, Client) async throws -> Void = { _, _ in }
     ) {
         self.messenger = messenger
-        messenger.onReceive { message in
-            try await self.onMessage(message, self)
+        self.onConnectionAck = onConnectionAck
+        self.onNext = onNext
+        self.onError = onError
+        self.onComplete = onComplete
+    }
 
+    /// Listen and react to the provided async sequence of server messages. This function will block until the stream is completed.
+    /// - Parameter incoming: The server message sequence that the client should react to.
+    public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws -> Void where A.Element == String {
+        for try await message in incoming {
             // Detect and ignore error responses.
             if message.starts(with: "44") {
                 // TODO: Determine what to do with returned error messages
@@ -33,13 +46,13 @@ public class Client<InitPayload: Equatable & Codable> {
             }
 
             guard let json = message.data(using: .utf8) else {
-                try await self.error(.invalidEncoding())
+                try await error(.invalidEncoding())
                 return
             }
 
             let response: Response
             do {
-                response = try self.decoder.decode(Response.self, from: json)
+                response = try decoder.decode(Response.self, from: json)
             } catch {
                 try await self.error(.noType())
                 return
@@ -47,68 +60,37 @@ public class Client<InitPayload: Equatable & Codable> {
 
             switch response.type {
             case .connectionAck:
-                guard let connectionAckResponse = try? self.decoder.decode(ConnectionAckResponse.self, from: json) else {
-                    try await self.error(.invalidResponseFormat(messageType: .connectionAck))
+                guard let connectionAckResponse = try? decoder.decode(ConnectionAckResponse.self, from: json) else {
+                    try await error(.invalidResponseFormat(messageType: .connectionAck))
                     return
                 }
-                try await self.onConnectionAck(connectionAckResponse, self)
+                try await onConnectionAck(connectionAckResponse, self)
             case .next:
-                guard let nextResponse = try? self.decoder.decode(NextResponse.self, from: json) else {
-                    try await self.error(.invalidResponseFormat(messageType: .next))
+                guard let nextResponse = try? decoder.decode(NextResponse.self, from: json) else {
+                    try await error(.invalidResponseFormat(messageType: .next))
                     return
                 }
-                try await self.onNext(nextResponse, self)
+                try await onNext(nextResponse, self)
             case .error:
-                guard let errorResponse = try? self.decoder.decode(ErrorResponse.self, from: json) else {
-                    try await self.error(.invalidResponseFormat(messageType: .error))
+                guard let errorResponse = try? decoder.decode(ErrorResponse.self, from: json) else {
+                    try await error(.invalidResponseFormat(messageType: .error))
                     return
                 }
-                try await self.onError(errorResponse, self)
+                try await onError(errorResponse, self)
             case .complete:
-                guard let completeResponse = try? self.decoder.decode(CompleteResponse.self, from: json) else {
-                    try await self.error(.invalidResponseFormat(messageType: .complete))
+                guard let completeResponse = try? decoder.decode(CompleteResponse.self, from: json) else {
+                    try await error(.invalidResponseFormat(messageType: .complete))
                     return
                 }
-                try await self.onComplete(completeResponse, self)
+                try await onComplete(completeResponse, self)
             default:
-                try await self.error(.invalidType())
+                try await error(.invalidType())
             }
         }
     }
 
-    /// Define the callback run on receipt of a `connection_ack` message
-    /// - Parameter callback: The callback to assign
-    public func onConnectionAck(_ callback: @escaping (ConnectionAckResponse, Client) async throws -> Void) {
-        onConnectionAck = callback
-    }
-
-    /// Define the callback run on receipt of a `next` message
-    /// - Parameter callback: The callback to assign
-    public func onNext(_ callback: @escaping (NextResponse, Client) async throws -> Void) {
-        onNext = callback
-    }
-
-    /// Define the callback run on receipt of an `error` message
-    /// - Parameter callback: The callback to assign
-    public func onError(_ callback: @escaping (ErrorResponse, Client) async throws -> Void) {
-        onError = callback
-    }
-
-    /// Define the callback run on receipt of a `complete` message
-    /// - Parameter callback: The callback to assign
-    public func onComplete(_ callback: @escaping (CompleteResponse, Client) async throws -> Void) {
-        onComplete = callback
-    }
-
-    /// Define the callback run on receipt of any message
-    /// - Parameter callback: The callback to assign
-    public func onMessage(_ callback: @escaping (String, Client) async throws -> Void) {
-        onMessage = callback
-    }
-
     /// Send a `connection_init` request through the messenger
     public func sendConnectionInit(payload: InitPayload) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             ConnectionInitRequest(
                 payload: payload
@@ -118,7 +100,6 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Send a `subscribe` request through the messenger
     public func sendStart(payload: GraphQLRequest, id: String) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             SubscribeRequest(
                 payload: payload,
@@ -129,7 +110,6 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Send a `complete` request through the messenger
     public func sendStop(id: String) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             CompleteRequest(
                 id: id
@@ -139,7 +119,6 @@ public class Client<InitPayload: Equatable & Codable> {
 
     /// Send an error through the messenger and close the connection
     private func error(_ error: GraphQLTransportWSError) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.error(error.message, code: error.code.rawValue)
     }
 }

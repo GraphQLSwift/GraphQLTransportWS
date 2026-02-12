@@ -4,29 +4,26 @@ import GraphQL
 /// Server implements the server-side portion of the protocol, allowing a few callbacks for customization.
 ///
 /// By default, there are no authorization checks
-public class Server<
+public actor Server<
     InitPayload: Equatable & Codable & Sendable,
+    InitPayloadResult: Sendable,
     SubscriptionSequenceType: AsyncSequence & Sendable
->: @unchecked Sendable where
+> where
     SubscriptionSequenceType.Element == GraphQLResult
 {
-    // We keep this weak because we strongly inject this object into the messenger callback
-    weak var messenger: Messenger?
+    let messenger: Messenger
 
-    let onExecute: (GraphQLRequest) async throws -> GraphQLResult
-    let onSubscribe: (GraphQLRequest) async throws -> SubscriptionSequenceType
-    var auth: (InitPayload) async throws -> Void
-
-    var onExit: () async throws -> Void = {}
-    var onMessage: (String) async throws -> Void = { _ in }
-    var onOperationComplete: (String) async throws -> Void = { _ in }
-    var onOperationError: (String, [Error]) async throws -> Void = { _, _ in }
-
-    var initialized = false
+    let onInit: (InitPayload) async throws -> InitPayloadResult
+    let onExecute: (GraphQLRequest, InitPayloadResult) async throws -> GraphQLResult
+    let onSubscribe: (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType
+    let onOperationComplete: (String) async throws -> Void
+    let onOperationError: (String, [Error]) async throws -> Void
 
     let decoder = JSONDecoder()
     let encoder = GraphQLJSONEncoder()
 
+    private var initialized = false
+    private var initResult: InitPayloadResult?
     private var subscriptionTasks = [String: Task<Void, any Error>]()
 
     /// Create a new server
@@ -35,21 +32,28 @@ public class Server<
     ///   - messenger: The messenger to bind the server to.
     ///   - onExecute: Callback run during `start` resolution for non-streaming queries. Typically this is `API.execute`.
     ///   - onSubscribe: Callback run during `start` resolution for streaming queries. Typically this is `API.subscribe`.
+    ///   - onOperationComplete: Optional callback run when an operation completes
+    ///   - onOperationError: Optional callback run when an operation errors
     public init(
         messenger: Messenger,
-        onExecute: @escaping (GraphQLRequest) async throws -> GraphQLResult,
-        onSubscribe: @escaping (GraphQLRequest) async throws -> SubscriptionSequenceType
+        onInit: @escaping (InitPayload) async throws -> InitPayloadResult,
+        onExecute: @escaping (GraphQLRequest, InitPayloadResult) async throws -> GraphQLResult,
+        onSubscribe: @escaping (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType,
+        onOperationComplete: @escaping (String) async throws -> Void = { _ in },
+        onOperationError: @escaping (String, [Error]) async throws -> Void = { _, _ in }
     ) {
         self.messenger = messenger
+        self.onInit = onInit
         self.onExecute = onExecute
         self.onSubscribe = onSubscribe
-        auth = { _ in }
+        self.onOperationComplete = onOperationComplete
+        self.onOperationError = onOperationError
+    }
 
-        messenger.onReceive { message in
-            guard let messenger = self.messenger else { return }
-
-            try await self.onMessage(message)
-
+    /// Listen and react to the provided async sequence of client messages. This function will block until the stream is completed.
+    /// - Parameter incoming: The client message sequence that the server should react to.
+    public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws -> Void where A.Element == String {
+        for try await message in incoming {
             // Detect and ignore error responses.
             if message.starts(with: "44") {
                 // TODO: Determine what to do with returned error messages
@@ -57,13 +61,13 @@ public class Server<
             }
 
             guard let json = message.data(using: .utf8) else {
-                try await self.error(.invalidEncoding())
+                try await error(.invalidEncoding())
                 return
             }
 
             let request: Request
             do {
-                request = try self.decoder.decode(Request.self, from: json)
+                request = try decoder.decode(Request.self, from: json)
             } catch {
                 try await self.error(.noType())
                 return
@@ -72,62 +76,31 @@ public class Server<
             // handle incoming message
             switch request.type {
             case .connectionInit:
-                guard let connectionInitRequest = try? self.decoder.decode(ConnectionInitRequest<InitPayload>.self, from: json) else {
-                    try await self.error(.invalidRequestFormat(messageType: .connectionInit))
+                guard let connectionInitRequest = try? decoder.decode(ConnectionInitRequest<InitPayload>.self, from: json) else {
+                    try await error(.invalidRequestFormat(messageType: .connectionInit))
                     return
                 }
-                try await self.onConnectionInit(connectionInitRequest, messenger)
+                try await onConnectionInit(connectionInitRequest, messenger)
             case .subscribe:
-                guard let subscribeRequest = try? self.decoder.decode(SubscribeRequest.self, from: json) else {
-                    try await self.error(.invalidRequestFormat(messageType: .subscribe))
+                guard let subscribeRequest = try? decoder.decode(SubscribeRequest.self, from: json) else {
+                    try await error(.invalidRequestFormat(messageType: .subscribe))
                     return
                 }
-                try await self.onSubscribe(subscribeRequest)
+                try await onSubscribe(subscribeRequest)
             case .complete:
-                guard let completeRequest = try? self.decoder.decode(CompleteRequest.self, from: json) else {
-                    try await self.error(.invalidRequestFormat(messageType: .complete))
+                guard let completeRequest = try? decoder.decode(CompleteRequest.self, from: json) else {
+                    try await error(.invalidRequestFormat(messageType: .complete))
                     return
                 }
-                try await self.onOperationComplete(completeRequest)
+                try await onOperationComplete(completeRequest)
             default:
-                try await self.error(.invalidType())
+                try await error(.invalidType())
             }
         }
     }
 
     deinit {
         subscriptionTasks.values.forEach { $0.cancel() }
-    }
-
-    /// Define a custom callback run during `connection_init` resolution that allows authorization using the `payload`.
-    /// Throw from this closure to indicate that authorization has failed.
-    /// - Parameter callback: The callback to assign
-    public func auth(_ callback: @escaping (InitPayload) async throws -> Void) {
-        auth = callback
-    }
-
-    /// Define the callback run when the communication is shut down, either by the client or server
-    /// - Parameter callback: The callback to assign
-    public func onExit(_ callback: @escaping () -> Void) {
-        onExit = callback
-    }
-
-    /// Define the callback run on receipt of any message
-    /// - Parameter callback: The callback to assign
-    public func onMessage(_ callback: @escaping (String) -> Void) {
-        onMessage = callback
-    }
-
-    /// Define the callback run on the completion a full operation (query/mutation, end of subscription)
-    /// - Parameter callback: The callback to assign
-    public func onOperationComplete(_ callback: @escaping (String) -> Void) {
-        onOperationComplete = callback
-    }
-
-    /// Define the callback to run on error of any full operation (failed query, interrupted subscription)
-    /// - Parameter callback: The callback to assign
-    public func onOperationError(_ callback: @escaping (String, [Error]) -> Void) {
-        onOperationError = callback
     }
 
     private func onConnectionInit(_ connectionInitRequest: ConnectionInitRequest<InitPayload>, _: Messenger) async throws {
@@ -137,7 +110,7 @@ public class Server<
         }
 
         do {
-            try await auth(connectionInitRequest.payload)
+            initResult = try await onInit(connectionInitRequest.payload)
         } catch {
             try await self.error(.unauthorized())
             return
@@ -148,7 +121,7 @@ public class Server<
     }
 
     private func onSubscribe(_ subscribeRequest: SubscribeRequest) async throws {
-        guard initialized else {
+        guard initialized, let initResult else {
             try await error(.notInitialized())
             return
         }
@@ -171,7 +144,7 @@ public class Server<
         if isStreaming {
             subscriptionTasks[id] = Task {
                 do {
-                    let stream = try await onSubscribe(graphQLRequest)
+                    let stream = try await onSubscribe(graphQLRequest, initResult)
                     for try await event in stream {
                         try Task.checkCancellation()
                         try await self.sendNext(event, id: id)
@@ -186,13 +159,12 @@ public class Server<
             }
         } else {
             do {
-                let result = try await onExecute(graphQLRequest)
+                let result = try await onExecute(graphQLRequest, initResult)
                 try await sendNext(result, id: id)
                 try await sendComplete(id: id)
             } catch {
                 try await sendError(error, id: id)
             }
-            try await messenger?.close()
         }
     }
 
@@ -212,7 +184,6 @@ public class Server<
 
     /// Send a `connection_ack` response through the messenger
     private func sendConnectionAck(_ payload: [String: Map]? = nil) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             ConnectionAckResponse(payload: payload).toJSON(encoder)
         )
@@ -220,7 +191,6 @@ public class Server<
 
     /// Send a `next` response through the messenger
     private func sendNext(_ payload: GraphQLResult? = nil, id: String) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             NextResponse(
                 payload: payload,
@@ -231,7 +201,6 @@ public class Server<
 
     /// Send a `complete` response through the messenger
     private func sendComplete(id: String) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             CompleteResponse(
                 id: id
@@ -242,7 +211,6 @@ public class Server<
 
     /// Send an `error` response through the messenger
     private func sendError(_ errors: [Error], id: String) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.send(
             ErrorResponse(
                 errors,
@@ -264,7 +232,6 @@ public class Server<
 
     /// Send an error through the messenger and close the connection
     private func error(_ error: GraphQLTransportWSError) async throws {
-        guard let messenger = messenger else { return }
         try await messenger.error(error.message, code: error.code.rawValue)
     }
 }
