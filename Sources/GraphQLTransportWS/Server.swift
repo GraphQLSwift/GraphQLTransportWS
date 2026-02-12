@@ -32,7 +32,6 @@ public actor Server<
     ///   - messenger: The messenger to bind the server to.
     ///   - onExecute: Callback run during `start` resolution for non-streaming queries. Typically this is `API.execute`.
     ///   - onSubscribe: Callback run during `start` resolution for streaming queries. Typically this is `API.subscribe`.
-    ///   - onMessage: Optional callback run on every message event
     ///   - onOperationComplete: Optional callback run when an operation completes
     ///   - onOperationError: Optional callback run when an operation errors
     public init(

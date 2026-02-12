@@ -17,6 +17,10 @@ public actor Client<InitPayload: Equatable & Codable> {
     ///
     /// - Parameters:
     ///   - messenger: The messenger to bind the client to.
+    ///   - onConnectionAck: The callback run on receipt of a `connection_ack` message
+    ///   - onNext: The callback run on receipt of a `next` message
+    ///   - onError: The callback run on receipt of an `error` message
+    ///   - onComplete: The callback run on receipt of a `complete` message
     public init(
         messenger: Messenger,
         onConnectionAck: @escaping (ConnectionAckResponse, Client) async throws -> Void = { _, _ in },
