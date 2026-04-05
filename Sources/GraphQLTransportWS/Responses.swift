@@ -18,10 +18,12 @@ public struct ConnectionAckResponse: Equatable, JsonEncodable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Self.CodingKeys.self)
         if try container.decode(ResponseMessageType.self, forKey: .type) != .connectionAck {
-            throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath,
-                debugDescription: "type must be `\(ResponseMessageType.connectionAck.type)`"
-            ))
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "type must be `\(ResponseMessageType.connectionAck.type)`"
+                )
+            )
         }
         payload = try container.decodeIfPresent([String: Map].self, forKey: .payload)
     }
@@ -41,10 +43,12 @@ public struct NextResponse: Equatable, JsonEncodable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Self.CodingKeys.self)
         if try container.decode(ResponseMessageType.self, forKey: .type) != .next {
-            throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath,
-                debugDescription: "type must be `\(ResponseMessageType.next.type)`"
-            ))
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "type must be `\(ResponseMessageType.next.type)`"
+                )
+            )
         }
         payload = try container.decodeIfPresent(GraphQLResult.self, forKey: .payload)
         id = try container.decode(String.self, forKey: .id)
@@ -63,10 +67,12 @@ public struct CompleteResponse: Equatable, JsonEncodable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Self.CodingKeys.self)
         if try container.decode(ResponseMessageType.self, forKey: .type) != .complete {
-            throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath,
-                debugDescription: "type must be `\(ResponseMessageType.complete.type)`"
-            ))
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "type must be `\(ResponseMessageType.complete.type)`"
+                )
+            )
         }
         id = try container.decode(String.self, forKey: .id)
     }
@@ -94,10 +100,12 @@ public struct ErrorResponse: Equatable, JsonEncodable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Self.CodingKeys.self)
         if try container.decode(ResponseMessageType.self, forKey: .type) != .error {
-            throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath,
-                debugDescription: "type must be `\(ResponseMessageType.error.type)`"
-            ))
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "type must be `\(ResponseMessageType.error.type)`"
+                )
+            )
         }
         payload = try container.decode([GraphQLError].self, forKey: .payload)
         id = try container.decode(String.self, forKey: .id)
