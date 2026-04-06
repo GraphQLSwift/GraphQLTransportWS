@@ -8,7 +8,8 @@ public actor Server<
     InitPayload: Equatable & Codable & Sendable,
     InitPayloadResult: Sendable,
     SubscriptionSequenceType: AsyncSequence & Sendable
-> where
+>
+where
     SubscriptionSequenceType.Element == GraphQLResult
 {
     let messenger: Messenger
@@ -38,7 +39,8 @@ public actor Server<
         messenger: Messenger,
         onInit: @escaping (InitPayload) async throws -> InitPayloadResult,
         onExecute: @escaping (GraphQLRequest, InitPayloadResult) async throws -> GraphQLResult,
-        onSubscribe: @escaping (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType,
+        onSubscribe:
+            @escaping (GraphQLRequest, InitPayloadResult) async throws -> SubscriptionSequenceType,
         onOperationComplete: @escaping (String) async throws -> Void = { _ in },
         onOperationError: @escaping (String, [Error]) async throws -> Void = { _, _ in }
     ) {
@@ -52,7 +54,8 @@ public actor Server<
 
     /// Listen and react to the provided async sequence of client messages. This function will block until the stream is completed.
     /// - Parameter incoming: The client message sequence that the server should react to.
-    public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws -> Void where A.Element == String {
+    public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws
+    where A.Element == String {
         for try await message in incoming {
             // Detect and ignore error responses.
             if message.starts(with: "44") {
@@ -76,19 +79,26 @@ public actor Server<
             // handle incoming message
             switch request.type {
             case .connectionInit:
-                guard let connectionInitRequest = try? decoder.decode(ConnectionInitRequest<InitPayload>.self, from: json) else {
+                guard
+                    let connectionInitRequest = try? decoder.decode(
+                        ConnectionInitRequest<InitPayload>.self,
+                        from: json
+                    )
+                else {
                     try await error(.invalidRequestFormat(messageType: .connectionInit))
                     return
                 }
                 try await onConnectionInit(connectionInitRequest, messenger)
             case .subscribe:
-                guard let subscribeRequest = try? decoder.decode(SubscribeRequest.self, from: json) else {
+                guard let subscribeRequest = try? decoder.decode(SubscribeRequest.self, from: json)
+                else {
                     try await error(.invalidRequestFormat(messageType: .subscribe))
                     return
                 }
                 try await onSubscribe(subscribeRequest)
             case .complete:
-                guard let completeRequest = try? decoder.decode(CompleteRequest.self, from: json) else {
+                guard let completeRequest = try? decoder.decode(CompleteRequest.self, from: json)
+                else {
                     try await error(.invalidRequestFormat(messageType: .complete))
                     return
                 }
@@ -103,7 +113,10 @@ public actor Server<
         subscriptionTasks.values.forEach { $0.cancel() }
     }
 
-    private func onConnectionInit(_ connectionInitRequest: ConnectionInitRequest<InitPayload>, _: Messenger) async throws {
+    private func onConnectionInit(
+        _ connectionInitRequest: ConnectionInitRequest<InitPayload>,
+        _: Messenger
+    ) async throws {
         guard !initialized else {
             try await error(.tooManyInitializations())
             return

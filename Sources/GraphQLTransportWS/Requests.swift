@@ -18,10 +18,12 @@ public struct ConnectionInitRequest<InitPayload: Codable & Equatable>: Equatable
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Self.CodingKeys.self)
         if try container.decode(RequestMessageType.self, forKey: .type) != .connectionInit {
-            throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath,
-                debugDescription: "type must be `\(RequestMessageType.connectionInit.type)`"
-            ))
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "type must be `\(RequestMessageType.connectionInit.type)`"
+                )
+            )
         }
         payload = try container.decode(InitPayload.self, forKey: .payload)
     }
@@ -41,10 +43,12 @@ public struct SubscribeRequest: Equatable, JsonEncodable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Self.CodingKeys.self)
         if try container.decode(RequestMessageType.self, forKey: .type) != .subscribe {
-            throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath,
-                debugDescription: "type must be `\(RequestMessageType.subscribe.type)`"
-            ))
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "type must be `\(RequestMessageType.subscribe.type)`"
+                )
+            )
         }
         payload = try container.decode(GraphQLRequest.self, forKey: .payload)
         id = try container.decode(String.self, forKey: .id)
@@ -63,10 +67,12 @@ public struct CompleteRequest: Equatable, JsonEncodable {
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: Self.CodingKeys.self)
         if try container.decode(RequestMessageType.self, forKey: .type) != .complete {
-            throw DecodingError.dataCorrupted(.init(
-                codingPath: decoder.codingPath,
-                debugDescription: "type must be `\(RequestMessageType.complete.type)`"
-            ))
+            throw DecodingError.dataCorrupted(
+                .init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "type must be `\(RequestMessageType.complete.type)`"
+                )
+            )
         }
         id = try container.decode(String.self, forKey: .id)
     }

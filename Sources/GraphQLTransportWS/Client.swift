@@ -23,7 +23,8 @@ public actor Client<InitPayload: Equatable & Codable> {
     ///   - onComplete: The callback run on receipt of a `complete` message
     public init(
         messenger: Messenger,
-        onConnectionAck: @escaping (ConnectionAckResponse, Client) async throws -> Void = { _, _ in },
+        onConnectionAck: @escaping (ConnectionAckResponse, Client) async throws -> Void = { _, _ in
+        },
         onNext: @escaping (NextResponse, Client) async throws -> Void = { _, _ in },
         onError: @escaping (ErrorResponse, Client) async throws -> Void = { _, _ in },
         onComplete: @escaping (CompleteResponse, Client) async throws -> Void = { _, _ in }
@@ -37,7 +38,8 @@ public actor Client<InitPayload: Equatable & Codable> {
 
     /// Listen and react to the provided async sequence of server messages. This function will block until the stream is completed.
     /// - Parameter incoming: The server message sequence that the client should react to.
-    public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws -> Void where A.Element == String {
+    public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws
+    where A.Element == String {
         for try await message in incoming {
             // Detect and ignore error responses.
             if message.starts(with: "44") {
@@ -60,7 +62,12 @@ public actor Client<InitPayload: Equatable & Codable> {
 
             switch response.type {
             case .connectionAck:
-                guard let connectionAckResponse = try? decoder.decode(ConnectionAckResponse.self, from: json) else {
+                guard
+                    let connectionAckResponse = try? decoder.decode(
+                        ConnectionAckResponse.self,
+                        from: json
+                    )
+                else {
                     try await error(.invalidResponseFormat(messageType: .connectionAck))
                     return
                 }
@@ -78,7 +85,8 @@ public actor Client<InitPayload: Equatable & Codable> {
                 }
                 try await onError(errorResponse, self)
             case .complete:
-                guard let completeResponse = try? decoder.decode(CompleteResponse.self, from: json) else {
+                guard let completeResponse = try? decoder.decode(CompleteResponse.self, from: json)
+                else {
                     try await error(.invalidResponseFormat(messageType: .complete))
                     return
                 }
