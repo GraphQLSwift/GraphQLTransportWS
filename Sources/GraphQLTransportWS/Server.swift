@@ -51,66 +51,74 @@ where
         self.onOperationComplete = onOperationComplete
         self.onOperationError = onOperationError
     }
-
+    
+    deinit {
+        subscriptionTasks.values.forEach { $0.cancel() }
+    }
+    
     /// Listen and react to the provided async sequence of client messages. This function will block until the stream is completed.
     /// - Parameter incoming: The client message sequence that the server should react to.
     public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws
-    where A.Element == String {
+    where A.Element == Data {
         for try await message in incoming {
-            // Detect and ignore error responses.
-            if message.starts(with: "44") {
-                // TODO: Determine what to do with returned error messages
-                return
-            }
+            try await respond(to: message)
+        }
+    }
 
-            guard let json = message.data(using: .utf8) else {
+    /// Listen and react to the provided async sequence of client messages. This function will block until the stream is completed.
+    /// - Parameter incoming: The client message sequence that the server should react to.
+    @available(*, deprecated, message: "Use `Data` sequence instead.")
+    public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws
+    where A.Element == String {
+        for try await stringMessage in incoming {
+            guard let message = stringMessage.data(using: .utf8) else {
                 try await error(.invalidEncoding())
                 return
             }
 
-            let request: Request
-            do {
-                request = try decoder.decode(Request.self, from: json)
-            } catch {
-                try await self.error(.noType())
-                return
-            }
-
-            // handle incoming message
-            switch request.type {
-            case .connectionInit:
-                guard
-                    let connectionInitRequest = try? decoder.decode(
-                        ConnectionInitRequest<InitPayload>.self,
-                        from: json
-                    )
-                else {
-                    try await error(.invalidRequestFormat(messageType: .connectionInit))
-                    return
-                }
-                try await onConnectionInit(connectionInitRequest, messenger)
-            case .subscribe:
-                guard let subscribeRequest = try? decoder.decode(SubscribeRequest.self, from: json)
-                else {
-                    try await error(.invalidRequestFormat(messageType: .subscribe))
-                    return
-                }
-                try await onSubscribe(subscribeRequest)
-            case .complete:
-                guard let completeRequest = try? decoder.decode(CompleteRequest.self, from: json)
-                else {
-                    try await error(.invalidRequestFormat(messageType: .complete))
-                    return
-                }
-                try await onOperationComplete(completeRequest)
-            default:
-                try await error(.invalidType())
-            }
+            try await respond(to: message)
         }
     }
 
-    deinit {
-        subscriptionTasks.values.forEach { $0.cancel() }
+    private func respond(to message: Data) async throws {
+        let request: Request
+        do {
+            request = try decoder.decode(Request.self, from: message)
+        } catch {
+            try await self.error(.noType())
+            return
+        }
+
+        // handle incoming message
+        switch request.type {
+        case .connectionInit:
+            guard
+                let connectionInitRequest = try? decoder.decode(
+                    ConnectionInitRequest<InitPayload>.self,
+                    from: message
+                )
+            else {
+                try await error(.invalidRequestFormat(messageType: .connectionInit))
+                return
+            }
+            try await onConnectionInit(connectionInitRequest, messenger)
+        case .subscribe:
+            guard let subscribeRequest = try? decoder.decode(SubscribeRequest.self, from: message)
+            else {
+                try await error(.invalidRequestFormat(messageType: .subscribe))
+                return
+            }
+            try await onSubscribe(subscribeRequest)
+        case .complete:
+            guard let completeRequest = try? decoder.decode(CompleteRequest.self, from: message)
+            else {
+                try await error(.invalidRequestFormat(messageType: .complete))
+                return
+            }
+            try await onOperationComplete(completeRequest)
+        default:
+            try await error(.invalidType())
+        }
     }
 
     private func onConnectionInit(
