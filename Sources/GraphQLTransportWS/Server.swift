@@ -133,7 +133,7 @@ where
         do {
             initResult = try await onInit(connectionInitRequest.payload)
         } catch {
-            try await self.error(.unauthorized())
+            try await self.error(.forbidden())
             return
         }
         initialized = true

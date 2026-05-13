@@ -9,105 +9,86 @@ struct GraphQLTransportWSError: Error {
         self.code = code
     }
 
-    static func unauthorized() -> Self {
+    static func forbidden() -> Self {
         return self.init(
-            "Unauthorized",
-            code: .unauthorized
+            "Forbidden",
+            code: .forbidden
         )
     }
 
     static func notInitialized() -> Self {
         return self.init(
             "Connection not initialized",
-            code: .notInitialized
+            code: .unauthorized
         )
     }
 
     static func tooManyInitializations() -> Self {
         return self.init(
             "Too many initialisation requests",
-            code: .tooManyInitializations
+            code: .tooManyRequests
         )
     }
 
     static func subscriberAlreadyExists(id: String) -> Self {
         return self.init(
             "Subscriber for \(id) already exists",
-            code: .subscriberAlreadyExists
+            code: .conflict
         )
     }
 
     static func invalidEncoding() -> Self {
         return self.init(
             "Message was not encoded in UTF8",
-            code: .invalidEncoding
+            code: .miscellaneous
         )
     }
 
     static func noType() -> Self {
         return self.init(
             "Message has no 'type' field",
-            code: .noType
+            code: .miscellaneous
         )
     }
 
     static func invalidType() -> Self {
         return self.init(
             "Message 'type' value does not match supported types",
-            code: .invalidType
+            code: .miscellaneous
         )
     }
 
     static func invalidRequestFormat(messageType: RequestMessageType) -> Self {
         return self.init(
             "Request message doesn't match '\(messageType.type.rawValue)' JSON format",
-            code: .invalidRequestFormat
+            code: .miscellaneous
         )
     }
 
     static func invalidResponseFormat(messageType: ResponseMessageType) -> Self {
         return self.init(
             "Response message doesn't match '\(messageType.type.rawValue)' JSON format",
-            code: .invalidResponseFormat
+            code: .miscellaneous
         )
     }
 
     static func internalAPIStreamIssue(errors: [GraphQLError]) -> Self {
         return self.init(
             "API Response did not result in a stream type, contained errors\n \(errors.map { $0.message }.joined(separator: "\n"))",
-            code: .internalAPIStreamIssue
-        )
-    }
-
-    static func graphQLError(_ error: Error) -> Self {
-        return self.init(
-            "\(error)",
-            code: .graphQLError
+            code: .internalServerError
         )
     }
 }
 
 /// Error codes for miscellaneous issues
-public enum ErrorCode: Int, CustomStringConvertible, Sendable {
+enum ErrorCode: Int, CustomStringConvertible, Sendable {
     /// Miscellaneous
     case miscellaneous = 4400
-
-    // Internal errors
-    case graphQLError = 4401
-    case internalAPIStreamIssue = 4402
-
-    // Message errors
-    case invalidEncoding = 4410
-    case noType = 4411
-    case invalidType = 4412
-    case invalidRequestFormat = 4413
-    case invalidResponseFormat = 4414
-
-    // Initialization errors
-    case unauthorized = 4430
-    case notInitialized = 4431
-    case tooManyInitializations = 4432
-    case subscriberAlreadyExists = 4433
+    case unauthorized = 4401
+    case forbidden = 4403
+    case conflict = 4409
+    case tooManyRequests = 4429
+    case internalServerError = 4500
 
     public var description: String {
         return "\(rawValue)"
