@@ -35,7 +35,7 @@ public actor Client<InitPayload: Equatable & Codable> {
         self.onError = onError
         self.onComplete = onComplete
     }
-    
+
     /// Listen and react to the provided async sequence of server messages. This function will block until the stream is completed.
     /// - Parameter incoming: The server message sequence that the client should react to.
     public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws
@@ -107,28 +107,34 @@ public actor Client<InitPayload: Equatable & Codable> {
     /// Send a `connection_init` request through the messenger
     public func sendConnectionInit(payload: InitPayload) async throws {
         try await messenger.send(
-            ConnectionInitRequest(
-                payload: payload
-            ).toJSON(encoder)
+            encoder.encode(
+                ConnectionInitRequest(
+                    payload: payload
+                )
+            )
         )
     }
 
     /// Send a `subscribe` request through the messenger
     public func sendStart(payload: GraphQLRequest, id: String) async throws {
         try await messenger.send(
-            SubscribeRequest(
-                payload: payload,
-                id: id
-            ).toJSON(encoder)
+            encoder.encode(
+                SubscribeRequest(
+                    payload: payload,
+                    id: id
+                )
+            )
         )
     }
 
     /// Send a `complete` request through the messenger
     public func sendStop(id: String) async throws {
         try await messenger.send(
-            CompleteRequest(
-                id: id
-            ).toJSON(encoder)
+            encoder.encode(
+                CompleteRequest(
+                    id: id
+                )
+            )
         )
     }
 

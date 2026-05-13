@@ -51,11 +51,11 @@ where
         self.onOperationComplete = onOperationComplete
         self.onOperationError = onOperationError
     }
-    
+
     deinit {
         subscriptionTasks.values.forEach { $0.cancel() }
     }
-    
+
     /// Listen and react to the provided async sequence of client messages. This function will block until the stream is completed.
     /// - Parameter incoming: The client message sequence that the server should react to.
     public func listen<A: AsyncSequence & Sendable>(to incoming: A) async throws
@@ -206,26 +206,32 @@ where
     /// Send a `connection_ack` response through the messenger
     private func sendConnectionAck(_ payload: [String: Map]? = nil) async throws {
         try await messenger.send(
-            ConnectionAckResponse(payload: payload).toJSON(encoder)
+            encoder.encode(
+                ConnectionAckResponse(payload: payload)
+            )
         )
     }
 
     /// Send a `next` response through the messenger
     private func sendNext(_ payload: GraphQLResult? = nil, id: String) async throws {
         try await messenger.send(
-            NextResponse(
-                payload: payload,
-                id: id
-            ).toJSON(encoder)
+            encoder.encode(
+                NextResponse(
+                    payload: payload,
+                    id: id
+                )
+            )
         )
     }
 
     /// Send a `complete` response through the messenger
     private func sendComplete(id: String) async throws {
         try await messenger.send(
-            CompleteResponse(
-                id: id
-            ).toJSON(encoder)
+            encoder.encode(
+                CompleteResponse(
+                    id: id
+                )
+            )
         )
         try await onOperationComplete(id)
     }
@@ -233,10 +239,12 @@ where
     /// Send an `error` response through the messenger
     private func sendError(_ errors: [Error], id: String) async throws {
         try await messenger.send(
-            ErrorResponse(
-                errors,
-                id: id
-            ).toJSON(encoder)
+            encoder.encode(
+                ErrorResponse(
+                    errors,
+                    id: id
+                )
+            )
         )
         try await onOperationError(id, errors)
     }

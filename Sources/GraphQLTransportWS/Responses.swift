@@ -2,12 +2,12 @@ import Foundation
 import GraphQL
 
 /// A general response. This object's type is used to triage to other, more specific response objects.
-public struct Response: Equatable, JsonEncodable {
+public struct Response: Equatable, Codable {
     public let type: ResponseMessageType
 }
 
 /// A websocket `connection_ack` response from the server to the client
-public struct ConnectionAckResponse: Equatable, JsonEncodable {
+public struct ConnectionAckResponse: Equatable, Codable {
     public let type: ResponseMessageType = .connectionAck
     public let payload: [String: Map]?
 
@@ -30,7 +30,7 @@ public struct ConnectionAckResponse: Equatable, JsonEncodable {
 }
 
 /// A websocket `next` response from the server to the client
-public struct NextResponse: Equatable, JsonEncodable {
+public struct NextResponse: Equatable, Codable {
     public let type: ResponseMessageType = .next
     public let payload: GraphQLResult?
     public let id: String
@@ -56,7 +56,7 @@ public struct NextResponse: Equatable, JsonEncodable {
 }
 
 /// A websocket `complete` response from the server to the client
-public struct CompleteResponse: Equatable, JsonEncodable {
+public struct CompleteResponse: Equatable, Codable {
     public let type: ResponseMessageType = .complete
     public let id: String
 
@@ -79,7 +79,7 @@ public struct CompleteResponse: Equatable, JsonEncodable {
 }
 
 /// A websocket `error` response from the server to the client
-public struct ErrorResponse: Equatable, JsonEncodable {
+public struct ErrorResponse: Equatable, Codable {
     public let type: ResponseMessageType = .error
     public let payload: [GraphQLError]
     public let id: String
@@ -148,7 +148,7 @@ public struct ResponseMessageType: Equatable, Codable, Sendable {
 
 /// A websocket `error` response from the server to the client that indicates an issue with encoding
 /// a response JSON
-struct EncodingErrorResponse: Equatable, Codable, JsonEncodable {
+struct EncodingErrorResponse: Equatable, Codable {
     let type: ResponseMessageType
     let payload: [String: String]
 
