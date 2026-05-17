@@ -2,12 +2,12 @@ import Foundation
 import GraphQL
 
 /// A general request. This object's type is used to triage to other, more specific request objects.
-public struct Request: Equatable, JsonEncodable {
+public struct Request: Equatable, Codable {
     public let type: RequestMessageType
 }
 
 /// A websocket `connection_init` request from the client to the server
-public struct ConnectionInitRequest<InitPayload: Codable & Equatable>: Equatable, JsonEncodable {
+public struct ConnectionInitRequest<InitPayload: Codable & Equatable>: Equatable, Codable {
     public let type: RequestMessageType = .connectionInit
     public let payload: InitPayload
 
@@ -30,7 +30,7 @@ public struct ConnectionInitRequest<InitPayload: Codable & Equatable>: Equatable
 }
 
 /// A websocket `subscribe` request from the client to the server
-public struct SubscribeRequest: Equatable, JsonEncodable {
+public struct SubscribeRequest: Equatable, Codable {
     public let type = RequestMessageType.subscribe
     public let payload: GraphQLRequest
     public let id: String
@@ -56,7 +56,7 @@ public struct SubscribeRequest: Equatable, JsonEncodable {
 }
 
 /// A websocket `complete` request from the client to the server
-public struct CompleteRequest: Equatable, JsonEncodable {
+public struct CompleteRequest: Equatable, Codable {
     public let type = RequestMessageType.complete
     public let id: String
 
