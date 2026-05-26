@@ -50,7 +50,7 @@ public actor Client<InitPayload: Equatable & Codable> {
         do {
             response = try decoder.decode(Response.self, from: message)
         } catch {
-            try await self.error(.noType())
+            try await messenger.error(.noType())
             return
         }
 
@@ -62,31 +62,31 @@ public actor Client<InitPayload: Equatable & Codable> {
                     from: message
                 )
             else {
-                try await error(.invalidResponseFormat(messageType: .connectionAck))
+                try await messenger.error(.invalidResponseFormat(messageType: .connectionAck))
                 return
             }
             try await onConnectionAck(connectionAckResponse, self)
         case .next:
             guard let nextResponse = try? decoder.decode(NextResponse.self, from: message) else {
-                try await error(.invalidResponseFormat(messageType: .next))
+                try await messenger.error(.invalidResponseFormat(messageType: .next))
                 return
             }
             try await onNext(nextResponse, self)
         case .error:
             guard let errorResponse = try? decoder.decode(ErrorResponse.self, from: message) else {
-                try await error(.invalidResponseFormat(messageType: .error))
+                try await messenger.error(.invalidResponseFormat(messageType: .error))
                 return
             }
             try await onError(errorResponse, self)
         case .complete:
             guard let completeResponse = try? decoder.decode(CompleteResponse.self, from: message)
             else {
-                try await error(.invalidResponseFormat(messageType: .complete))
+                try await messenger.error(.invalidResponseFormat(messageType: .complete))
                 return
             }
             try await onComplete(completeResponse, self)
         default:
-            try await error(.invalidType())
+            try await messenger.error(.invalidType())
         }
     }
 
@@ -122,10 +122,5 @@ public actor Client<InitPayload: Equatable & Codable> {
                 )
             )
         )
-    }
-
-    /// Send an error through the messenger and close the connection
-    private func error(_ error: GraphQLTransportWSError) async throws {
-        try await messenger.error(error.message, code: error.code.rawValue)
     }
 }
