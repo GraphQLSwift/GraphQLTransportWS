@@ -77,27 +77,32 @@ where
         // handle incoming message
         switch request.type {
         case .connectionInit:
-            guard
-                let connectionInitRequest = try? decoder.decode(
+            let connectionInitRequest: ConnectionInitRequest<InitPayload>
+            do {
+                connectionInitRequest = try decoder.decode(
                     ConnectionInitRequest<InitPayload>.self,
                     from: message
                 )
-            else {
-                try await messenger.error(.invalidRequestFormat(messageType: .connectionInit))
+            } catch {
+                try await messenger.error(.invalidRequestFormat(messageType: .connectionInit, error: error))
                 return
             }
             try await onConnectionInit(connectionInitRequest, messenger)
         case .subscribe:
-            guard let subscribeRequest = try? decoder.decode(SubscribeRequest.self, from: message)
-            else {
-                try await messenger.error(.invalidRequestFormat(messageType: .subscribe))
+            let subscribeRequest: SubscribeRequest
+            do {
+                subscribeRequest = try decoder.decode(SubscribeRequest.self, from: message)
+            } catch {
+                try await messenger.error(.invalidRequestFormat(messageType: .subscribe, error: error))
                 return
             }
             try await onSubscribe(subscribeRequest)
         case .complete:
-            guard let completeRequest = try? decoder.decode(CompleteRequest.self, from: message)
-            else {
-                try await messenger.error(.invalidRequestFormat(messageType: .complete))
+            let completeRequest: CompleteRequest
+            do {
+                completeRequest = try decoder.decode(CompleteRequest.self, from: message)
+            } catch {
+                try await messenger.error(.invalidRequestFormat(messageType: .complete, error: error))
                 return
             }
             try await onOperationComplete(completeRequest)

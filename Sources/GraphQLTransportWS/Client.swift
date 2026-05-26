@@ -56,32 +56,41 @@ public actor Client<InitPayload: Equatable & Codable> {
 
         switch response.type {
         case .connectionAck:
-            guard
-                let connectionAckResponse = try? decoder.decode(
+            let connectionAckResponse: ConnectionAckResponse
+            do {
+                connectionAckResponse = try decoder.decode(
                     ConnectionAckResponse.self,
                     from: message
                 )
-            else {
-                try await messenger.error(.invalidResponseFormat(messageType: .connectionAck))
+            } catch {
+                try await messenger.error(.invalidResponseFormat(messageType: .connectionAck, error: error))
                 return
             }
             try await onConnectionAck(connectionAckResponse, self)
         case .next:
-            guard let nextResponse = try? decoder.decode(NextResponse.self, from: message) else {
-                try await messenger.error(.invalidResponseFormat(messageType: .next))
+            let nextResponse: NextResponse
+            do {
+                nextResponse = try decoder.decode(NextResponse.self, from: message)
+            } catch {
+                try await messenger.error(.invalidResponseFormat(messageType: .next, error: error))
                 return
             }
             try await onNext(nextResponse, self)
         case .error:
-            guard let errorResponse = try? decoder.decode(ErrorResponse.self, from: message) else {
-                try await messenger.error(.invalidResponseFormat(messageType: .error))
+            let errorResponse: ErrorResponse
+            do {
+                errorResponse = try decoder.decode(ErrorResponse.self, from: message)
+            } catch {
+                try await messenger.error(.invalidResponseFormat(messageType: .error, error: error))
                 return
             }
             try await onError(errorResponse, self)
         case .complete:
-            guard let completeResponse = try? decoder.decode(CompleteResponse.self, from: message)
-            else {
-                try await messenger.error(.invalidResponseFormat(messageType: .complete))
+            let completeResponse: CompleteResponse
+            do {
+                completeResponse = try decoder.decode(CompleteResponse.self, from: message)
+            } catch {
+                try await messenger.error(.invalidResponseFormat(messageType: .complete, error: error))
                 return
             }
             try await onComplete(completeResponse, self)
