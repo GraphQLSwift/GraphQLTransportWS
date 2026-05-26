@@ -153,25 +153,28 @@ where
             }
 
             if isStreaming {
+                let stream: SubscriptionSequenceType
                 do {
-                    let stream = try await onSubscribe(graphQLRequest, initResult)
-                    for try await event in stream {
-                        try Task.checkCancellation()
-                        try await self.sendNext(event, id: id)
-                    }
+                    stream = try await onSubscribe(graphQLRequest, initResult)
                 } catch {
                     try await sendError(error, id: id)
+                    return
                 }
-                try await self.sendComplete(id: id)
+                for try await event in stream {
+                    try await self.sendNext(event, id: id)
+                }
+                executionTasks.removeValue(forKey: id)
             } else {
+                let result: GraphQLResult
                 do {
-                    let result = try await onExecute(graphQLRequest, initResult)
-                    try await sendNext(result, id: id)
-                    try await sendComplete(id: id)
+                    result = try await onExecute(graphQLRequest, initResult)
                 } catch {
                     try await sendError(error, id: id)
+                    return
                 }
+                try await sendNext(result, id: id)
             }
+            try await sendComplete(id: id)
         }
     }
 
@@ -238,11 +241,6 @@ where
     /// Send an `error` response through the messenger
     private func sendError(_ error: Error, id: String) async throws {
         try await sendError([error], id: id)
-    }
-
-    /// Send an `error` response through the messenger
-    private func sendError(_ errorMessage: String, id: String) async throws {
-        try await sendError(GraphQLError(message: errorMessage), id: id)
     }
 
     /// Send an error through the messenger and close the connection
