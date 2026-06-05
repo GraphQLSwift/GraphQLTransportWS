@@ -25,7 +25,7 @@ where
 
     private var initialized = false
     private var initResult: InitPayloadResult?
-    private var subscriptionTasks = [String: Task<Void, any Error>]()
+    private var executionTasks = [String: Task<Void, any Error>]()
 
     /// Create a new server
     ///
@@ -53,7 +53,7 @@ where
     }
 
     deinit {
-        subscriptionTasks.values.forEach { $0.cancel() }
+        executionTasks.values.forEach { $0.cancel() }
     }
 
     /// Listen and react to the provided async sequence of client messages. This function will block until the stream is completed.
@@ -70,39 +70,44 @@ where
         do {
             request = try decoder.decode(Request.self, from: message)
         } catch {
-            try await self.error(.noType())
+            try await messenger.error(.noType())
             return
         }
 
         // handle incoming message
         switch request.type {
         case .connectionInit:
-            guard
-                let connectionInitRequest = try? decoder.decode(
+            let connectionInitRequest: ConnectionInitRequest<InitPayload>
+            do {
+                connectionInitRequest = try decoder.decode(
                     ConnectionInitRequest<InitPayload>.self,
                     from: message
                 )
-            else {
-                try await error(.invalidRequestFormat(messageType: .connectionInit))
+            } catch {
+                try await messenger.error(.invalidRequestFormat(messageType: .connectionInit, error: error))
                 return
             }
             try await onConnectionInit(connectionInitRequest, messenger)
         case .subscribe:
-            guard let subscribeRequest = try? decoder.decode(SubscribeRequest.self, from: message)
-            else {
-                try await error(.invalidRequestFormat(messageType: .subscribe))
+            let subscribeRequest: SubscribeRequest
+            do {
+                subscribeRequest = try decoder.decode(SubscribeRequest.self, from: message)
+            } catch {
+                try await messenger.error(.invalidRequestFormat(messageType: .subscribe, error: error))
                 return
             }
             try await onSubscribe(subscribeRequest)
         case .complete:
-            guard let completeRequest = try? decoder.decode(CompleteRequest.self, from: message)
-            else {
-                try await error(.invalidRequestFormat(messageType: .complete))
+            let completeRequest: CompleteRequest
+            do {
+                completeRequest = try decoder.decode(CompleteRequest.self, from: message)
+            } catch {
+                try await messenger.error(.invalidRequestFormat(messageType: .complete, error: error))
                 return
             }
             try await onOperationComplete(completeRequest)
         default:
-            try await error(.invalidType())
+            try await messenger.error(.invalidType())
         }
     }
 
@@ -111,14 +116,14 @@ where
         _: Messenger
     ) async throws {
         guard !initialized else {
-            try await error(.tooManyInitializations())
+            try await messenger.error(.tooManyInitializations())
             return
         }
 
         do {
             initResult = try await onInit(connectionInitRequest.payload)
         } catch {
-            try await self.error(.forbidden())
+            try await messenger.error(.forbidden())
             return
         }
         initialized = true
@@ -128,18 +133,14 @@ where
 
     private func onSubscribe(_ subscribeRequest: SubscribeRequest) async throws {
         guard initialized, let initResult else {
-            try await error(.notInitialized())
+            try await messenger.error(.notInitialized())
             return
         }
 
         let id = subscribeRequest.id
-        if subscriptionTasks[id] != nil {
-            try await error(.subscriberAlreadyExists(id: id))
-        }
-
         let graphQLRequest = subscribeRequest.payload
 
-        var isStreaming = false
+        let isStreaming: Bool
         do {
             isStreaming = try graphQLRequest.isSubscription()
         } catch {
@@ -147,43 +148,51 @@ where
             return
         }
 
-        if isStreaming {
-            subscriptionTasks[id] = Task {
+        guard executionTasks[id] == nil else {
+            try await messenger.error(.subscriberAlreadyExists(id: id))
+            return
+        }
+        executionTasks[id] = Task {
+            defer {
+                executionTasks.removeValue(forKey: id)
+            }
+
+            if isStreaming {
+                let stream: SubscriptionSequenceType
                 do {
-                    let stream = try await onSubscribe(graphQLRequest, initResult)
-                    for try await event in stream {
-                        try Task.checkCancellation()
-                        try await self.sendNext(event, id: id)
-                    }
+                    stream = try await onSubscribe(graphQLRequest, initResult)
                 } catch {
                     try await sendError(error, id: id)
-                    subscriptionTasks.removeValue(forKey: id)
-                    throw error
+                    return
                 }
-                try await self.sendComplete(id: id)
-                subscriptionTasks.removeValue(forKey: id)
-            }
-        } else {
-            do {
-                let result = try await onExecute(graphQLRequest, initResult)
+                for try await event in stream {
+                    try await self.sendNext(event, id: id)
+                }
+                executionTasks.removeValue(forKey: id)
+            } else {
+                let result: GraphQLResult
+                do {
+                    result = try await onExecute(graphQLRequest, initResult)
+                } catch {
+                    try await sendError(error, id: id)
+                    return
+                }
                 try await sendNext(result, id: id)
-                try await sendComplete(id: id)
-            } catch {
-                try await sendError(error, id: id)
             }
+            try await sendComplete(id: id)
         }
     }
 
     private func onOperationComplete(_ completeRequest: CompleteRequest) async throws {
         guard initialized else {
-            try await error(.notInitialized())
+            try await messenger.error(.notInitialized())
             return
         }
 
         let id = completeRequest.id
-        if let task = subscriptionTasks[id] {
+        if let task = executionTasks[id] {
             task.cancel()
-            subscriptionTasks.removeValue(forKey: id)
+            executionTasks.removeValue(forKey: id)
         }
         try await onOperationComplete(id)
     }
@@ -237,15 +246,5 @@ where
     /// Send an `error` response through the messenger
     private func sendError(_ error: Error, id: String) async throws {
         try await sendError([error], id: id)
-    }
-
-    /// Send an `error` response through the messenger
-    private func sendError(_ errorMessage: String, id: String) async throws {
-        try await sendError(GraphQLError(message: errorMessage), id: id)
-    }
-
-    /// Send an error through the messenger and close the connection
-    private func error(_ error: GraphQLTransportWSError) async throws {
-        try await messenger.error(error.message, code: error.code.rawValue)
     }
 }
